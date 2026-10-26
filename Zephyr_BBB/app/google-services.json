@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "489593354180",
+    "project_id": "zephyr-bbb",
+    "storage_bucket": "zephyr-bbb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:489593354180:android:fe3f583ab2cef119fa9691",
+        "android_client_info": {
+          "package_name": "com.example.zephyr_bbb"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCCFUwxXxBY618bdO4Hgkxpzwqssbqw_hw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
