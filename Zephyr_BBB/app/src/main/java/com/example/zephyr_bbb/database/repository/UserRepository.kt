@@ -241,6 +241,12 @@ class UserRepository {
                                     "User profile was not found."
                                 )
                             )
+                        } else if (user.status != "active") {
+                            onFailure(
+                                IllegalStateException(
+                                    "This profile has been removed."
+                                )
+                            )
                         } else {
                             onSuccess(user)
                         }
