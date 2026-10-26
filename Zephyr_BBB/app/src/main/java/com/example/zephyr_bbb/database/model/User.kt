@@ -8,7 +8,7 @@ import com.google.firebase.firestore.DocumentId
  * The document ID matches the Firebase Authentication UID.
  */
 data class User(
-    @DocumentId
+    @get:DocumentId
     var id: String = "",
     var name: String = "",
     var email: String = "",

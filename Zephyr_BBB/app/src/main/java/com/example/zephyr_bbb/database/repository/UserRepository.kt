@@ -6,8 +6,9 @@ import com.example.zephyr_bbb.database.model.User
 import com.google.firebase.firestore.FieldValue
 
 /**
- * Handles device-based anonymous sign-in and profile editing
- * Profiles are stored at users/{UID}.
+ * Handles anonymous device sign-in and user profile persistence.
+ * Profiles are stored at users/{Firebase Authentication UID}.
+ * Image uploads are handled separately by ImageRepository.
  */
 class UserRepository {
 
@@ -17,7 +18,7 @@ class UserRepository {
 
     /**
      * Reuses the current account or signs in anonymously.
-     * Creates a profile if one does not already exist.
+     * Creates a profile only if one does not already exist.
      */
     fun getOrCreateCurrentUser(
         onSuccess: (User) -> Unit,
@@ -47,7 +48,11 @@ class UserRepository {
                     return@addOnSuccessListener
                 }
 
-                loadOrCreateProfile(uid, onSuccess, onFailure)
+                loadOrCreateProfile(
+                    uid,
+                    onSuccess,
+                    onFailure
+                )
             }
             .addOnFailureListener { error ->
                 onFailure(error)
@@ -55,7 +60,7 @@ class UserRepository {
     }
 
     /**
-     * Reads a user profile.
+     * Reads a profile by its user ID.
      * Returns null if the profile does not exist.
      */
     fun getUser(
@@ -82,11 +87,70 @@ class UserRepository {
 
     /**
      * Updates the current user's name, email and phone number.
+     * Preserves the user's roles and other profile fields.
      */
     fun updateProfile(
         name: String,
         email: String,
         phone: String,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        updateCurrentUser(
+            updates = mapOf(
+                "name" to name.trim(),
+                "email" to email.trim(),
+                "phone" to phone.trim()
+            ),
+            onSuccess = onSuccess,
+            onFailure = onFailure
+        )
+    }
+
+    /**
+     * Enables or disables notifications for the current user
+     * Notification creation/delivery code must read this preference
+     * when deciding whether to notify the user.
+     */
+    fun updateNotificationPreference(
+        enabled: Boolean,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        updateCurrentUser(
+            updates = mapOf(
+                "notificationsEnabled" to enabled
+            ),
+            onSuccess = onSuccess,
+            onFailure = onFailure
+        )
+    }
+
+    /**
+     * Sets the current user's profile image reference.
+     * Pass null to remove the reference.
+     * This does not upload or delete the actual image file.
+     */
+    fun updateProfileImage(
+        imageId: String?,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        updateCurrentUser(
+            updates = mapOf(
+                "profileImageId" to imageId
+            ),
+            onSuccess = onSuccess,
+            onFailure = onFailure
+        )
+    }
+
+    /**
+     * Deletes the current user's profile document and signs out
+     * Existing reservations, campsite listings and image records
+     * are not deleted by this method.
+     */
+    fun deleteCurrentProfile(
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
     ) {
@@ -100,14 +164,36 @@ class UserRepository {
         }
 
         usersRef.document(uid)
-            .update(
-                mapOf(
-                    "name" to name.trim(),
-                    "email" to email.trim(),
-                    "phone" to phone.trim(),
-                    "updatedAt" to FieldValue.serverTimestamp()
-                )
+            .delete()
+            .addOnSuccessListener {
+                auth.signOut()
+                onSuccess()
+            }
+            .addOnFailureListener { error ->
+                onFailure(error)
+            }
+    }
+
+    private fun updateCurrentUser(
+        updates: Map<String, Any?>,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        val uid = auth.currentUser?.uid
+
+        if (uid == null) {
+            onFailure(
+                IllegalStateException("Sign in first.")
             )
+            return
+        }
+
+        val fields = updates + (
+                "updatedAt" to FieldValue.serverTimestamp()
+                )
+
+        usersRef.document(uid)
+            .update(fields)
             .addOnSuccessListener {
                 onSuccess()
             }
