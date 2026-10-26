@@ -4,11 +4,10 @@ import com.example.zephyr_bbb.database.data.Collections
 import com.example.zephyr_bbb.database.data.FirebaseProvider
 import com.example.zephyr_bbb.database.model.User
 import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.Source
 
 /**
- * Handles anonymous authentication and user profile persistence.
- * Firestore security rules must protect roles and account status.
+ * Handles device-based anonymous sign-in and profile editing
+ * Profiles are stored at users/{UID}.
  */
 class UserRepository {
 
@@ -18,8 +17,7 @@ class UserRepository {
 
     /**
      * Reuses the current account or signs in anonymously.
-     * Creates a profile only if one does not already exist.
-     * Returns the profile read from the server.
+     * Creates a profile if one does not already exist.
      */
     fun getOrCreateCurrentUser(
         onSuccess: (User) -> Unit,
@@ -46,13 +44,10 @@ class UserRepository {
                             "Authentication returned no user."
                         )
                     )
-                } else {
-                    loadOrCreateProfile(
-                        uid,
-                        onSuccess,
-                        onFailure
-                    )
+                    return@addOnSuccessListener
                 }
+
+                loadOrCreateProfile(uid, onSuccess, onFailure)
             }
             .addOnFailureListener { error ->
                 onFailure(error)
@@ -60,14 +55,38 @@ class UserRepository {
     }
 
     /**
-     * Updates the current user's editable profile fields.
-     * Does not modify roles, account status or creation time.
+     * Reads a user profile.
+     * Returns null if the profile does not exist.
+     */
+    fun getUser(
+        userId: String,
+        onSuccess: (User?) -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        usersRef.document(userId)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val user = try {
+                    snapshot.toObject(User::class.java)
+                } catch (error: Exception) {
+                    onFailure(error)
+                    return@addOnSuccessListener
+                }
+
+                onSuccess(user)
+            }
+            .addOnFailureListener { error ->
+                onFailure(error)
+            }
+    }
+
+    /**
+     * Updates the current user's name, email and phone number.
      */
     fun updateProfile(
         name: String,
         email: String,
         phone: String,
-        notificationsEnabled: Boolean,
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
     ) {
@@ -75,23 +94,20 @@ class UserRepository {
 
         if (uid == null) {
             onFailure(
-                IllegalStateException(
-                    "Sign in before updating your profile."
-                )
+                IllegalStateException("Sign in first.")
             )
             return
         }
 
-        val updates = mapOf(
-            "name" to name.trim(),
-            "email" to email.trim(),
-            "phone" to phone.trim(),
-            "notificationsEnabled" to notificationsEnabled,
-            "updatedAt" to FieldValue.serverTimestamp()
-        )
-
         usersRef.document(uid)
-            .update(updates)
+            .update(
+                mapOf(
+                    "name" to name.trim(),
+                    "email" to email.trim(),
+                    "phone" to phone.trim(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            )
             .addOnSuccessListener {
                 onSuccess()
             }
@@ -111,33 +127,28 @@ class UserRepository {
             val snapshot = transaction.get(userRef)
 
             if (!snapshot.exists()) {
-                val profile = hashMapOf<String, Any?>(
-                    "name" to "",
-                    "email" to "",
-                    "phone" to "",
-                    "roles" to listOf("entrant"),
-                    "profileImageId" to null,
-                    "notificationsEnabled" to true,
-                    "status" to "active",
-                    "createdAt" to FieldValue.serverTimestamp(),
-                    "updatedAt" to FieldValue.serverTimestamp()
+                transaction.set(
+                    userRef,
+                    mapOf(
+                        "name" to "",
+                        "email" to "",
+                        "phone" to "",
+                        "roles" to listOf("entrant"),
+                        "profileImageId" to null,
+                        "notificationsEnabled" to true,
+                        "status" to "active",
+                        "createdAt" to FieldValue.serverTimestamp(),
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
                 )
-
-                transaction.set(userRef, profile)
             }
 
             true
         }
             .addOnSuccessListener {
-                userRef.get(Source.SERVER)
-                    .addOnSuccessListener profileLoaded@{ snapshot ->
-                        val user = try {
-                            snapshot.toObject(User::class.java)
-                        } catch (error: Exception) {
-                            onFailure(error)
-                            return@profileLoaded
-                        }
-
+                getUser(
+                    userId = uid,
+                    onSuccess = { user ->
                         if (user == null) {
                             onFailure(
                                 IllegalStateException(
@@ -147,10 +158,9 @@ class UserRepository {
                         } else {
                             onSuccess(user)
                         }
-                    }
-                    .addOnFailureListener { error ->
-                        onFailure(error)
-                    }
+                    },
+                    onFailure = onFailure
+                )
             }
             .addOnFailureListener { error ->
                 onFailure(error)
