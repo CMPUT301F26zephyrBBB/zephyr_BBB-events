@@ -3,25 +3,30 @@ package com.example.zephyr_bbb.database.repository
 import com.example.zephyr_bbb.database.data.Collections
 import com.example.zephyr_bbb.database.data.FirebaseProvider
 import com.example.zephyr_bbb.database.model.AppNotification
-import com.example.zephyr_bbb.database.model.Campsite
 import com.example.zephyr_bbb.database.model.Lottery
 import com.example.zephyr_bbb.database.model.LotteryEntry
+import com.example.zephyr_bbb.database.model.User
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Query
 
 /**
- * Creates single-campsite lotteries and manages waitlists,
- * draw results and declined winning opportunities.
+ * Handles lottery creation, editing, waitlists, results and declines.
+ *
  * Lotteries: lotteries/{lotteryId}
  * Entries: lotteries/{lotteryId}/entries/{entrantId}
- * Automatic scheduling is handled outside this repository.
- * drawWinners must be called after registration closes.
+ *
+ * Call after sign-in. Dates supplied by screens use YYYY-MM-DD.
+ * Automatic scheduling is handled separately.
+ * Draw transactions are intended for small classroom waitlists.
  */
 class LotteryRepository {
-    private val auth = FirebaseProvider.auth
+
     private val db = FirebaseProvider.db
     private val lotteriesRef = db.collection(Collections.LOTTERIES)
+
     /**
-     * Creates a lottery for one campsite owned by the current user.
+     * Creates a lottery for the owner's selected campsites.
+     * A null waitlistCapacity means no application-defined limit.
      * Returns the generated lottery ID.
      */
     fun createLottery(
@@ -29,108 +34,91 @@ class LotteryRepository {
         onSuccess: (String) -> Unit,
         onFailure: (Exception) -> Unit
     ) {
-        val uid = auth.currentUser?.uid
+        val error = validateLottery(lottery)
 
-        if (uid == null) {
-            onFailure(
-                IllegalStateException("Sign in first.")
-            )
-            return
-        }
-        val campsiteId = lottery.campsiteIds.singleOrNull()
-        if (campsiteId.isNullOrBlank()) {
-            onFailure(
-                IllegalArgumentException("Choose one campsite.")
-            )
+        if (error != null) {
+            onFailure(IllegalArgumentException(error))
             return
         }
 
-        try {
-            require(lottery.winnerCount > 0) {
-                "Choose at least one winner."
-            }
+        val now = Timestamp.now()
 
-            val registrationStart =
-                requireNotNull(lottery.registrationOpensAt) {
-                    "Set the registration start time."
-                }
+        val newLottery = lottery.copy(
+            id = "",
+            ownerId = FirebaseProvider.requireUid(),
+            entryCount = 0,
+            status = "open",
+            drawnAt = null,
+            createdAt = now,
+            updatedAt = now
+        )
 
-            val registrationEnd =
-                requireNotNull(lottery.registrationClosesAt) {
-                    "Set the registration end time."
-                }
+        lotteriesRef.add(newLottery)
+            .addOnSuccessListener { onSuccess(it.id) }
+            .addOnFailureListener { onFailure(it) }
+    }
 
-            val bookingStart =
-                requireNotNull(lottery.bookingOpensAt) {
-                    "Set the booking start time."
-                }
+    /**
+     * Updates an owner's lottery before it has been drawn.
+     * Preserves existing entries and creation time.
+     */
+    fun updateLottery(
+        lottery: Lottery,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        val error = validateLottery(lottery)
 
-            val bookingEnd =
-                requireNotNull(lottery.bookingClosesAt) {
-                    "Set the booking end time."
-                }
-
-            require(registrationStart < registrationEnd) {
-                "Registration must end after it starts."
-            }
-
-            require(bookingStart < bookingEnd) {
-                "Booking must end after it starts."
-            }
-
-            require(
-                lottery.stayStartDate.isNotBlank() &&
-                        lottery.stayEndDate.isNotBlank() &&
-                        lottery.stayStartDate < lottery.stayEndDate
-            ) {
-                "Set a valid stay period using YYYY-MM-DD."
-            }
-        } catch (error: Exception) {
-            onFailure(error)
+        if (error != null) {
+            onFailure(IllegalArgumentException(error))
             return
         }
 
-        val lotteryRef = lotteriesRef.document()
-
-        val campsiteRef = db.collection(Collections.CAMPSITES)
-            .document(campsiteId)
+        val uid = FirebaseProvider.requireUid()
+        val lotteryRef = lotteriesRef.document(lottery.id)
 
         db.runTransaction { transaction ->
-            val campsite = transaction.get(campsiteRef)
-                .toObject(Campsite::class.java)
-                ?: throw IllegalStateException(
-                    "Campsite was not found."
-                )
+            val existing = transaction.get(lotteryRef)
+                .toObject(Lottery::class.java)!!
 
-            if (campsite.ownerId != uid) {
-                throw IllegalStateException(
-                    "You can only create lotteries for your own campsite."
-                )
+            check(existing.ownerId == uid) {
+                "Only the owner can edit this lottery."
             }
 
-            val now = Timestamp.now()
+            check(existing.status == "open") {
+                "The lottery has already been drawn."
+            }
 
-            transaction.set(
+            val capacity = lottery.waitlistCapacity
+
+            check(
+                capacity == null ||
+                        capacity >= existing.entryCount
+            ) {
+                "Capacity cannot be below the current waitlist size."
+            }
+
+            transaction.update(
                 lotteryRef,
-                lottery.copy(
-                    id = "",
-                    ownerId = uid,
-                    entryCount = 0,
-                    status = "open",
-                    drawnAt = null,
-                    createdAt = now,
-                    updatedAt = now
+                mapOf(
+                    "title" to lottery.title,
+                    "campsiteIds" to lottery.campsiteIds,
+                    "registrationOpensAt" to lottery.registrationOpensAt,
+                    "registrationClosesAt" to lottery.registrationClosesAt,
+                    "bookingOpensAt" to lottery.bookingOpensAt,
+                    "bookingClosesAt" to lottery.bookingClosesAt,
+                    "stayStartDate" to lottery.stayStartDate,
+                    "stayEndDate" to lottery.stayEndDate,
+                    "winnerCount" to lottery.winnerCount,
+                    "waitlistCapacity" to lottery.waitlistCapacity,
+                    "updatedAt" to Timestamp.now()
                 )
             )
 
-            lotteryRef.id
+            true
         }
-            .addOnSuccessListener { id ->
-                onSuccess(id)
-            }
-            .addOnFailureListener { error ->
-                onFailure(error)
-            }
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onFailure(it) }
     }
 
     /**
@@ -144,63 +132,80 @@ class LotteryRepository {
     ) {
         lotteriesRef.document(lotteryId)
             .get()
-            .addOnSuccessListener { snapshot ->
-                val lottery = try {
-                    snapshot.toObject(Lottery::class.java)
-                } catch (error: Exception) {
-                    onFailure(error)
-                    return@addOnSuccessListener
-                }
-
-                onSuccess(lottery)
+            .addOnSuccessListener {
+                onSuccess(it.toObject(Lottery::class.java))
             }
-            .addOnFailureListener { error ->
-                onFailure(error)
-            }
+            .addOnFailureListener { onFailure(it) }
     }
 
     /**
-     * Returns lotteries currently accepting registrations
-     * for the specified campsite.
+     * Returns the current owner's lotteries.
+     */
+    fun getMyLotteries(
+        onSuccess: (List<Lottery>) -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        readLotteries(
+            query = lotteriesRef.whereEqualTo(
+                "ownerId",
+                FirebaseProvider.requireUid()
+            ),
+            onSuccess = onSuccess,
+            onFailure = onFailure
+        )
+    }
+
+    /**
+     * Returns lotteries accepting registrations for a campsite.
      */
     fun getActiveLotteriesForCampsite(
         campsiteId: String,
         onSuccess: (List<Lottery>) -> Unit,
         onFailure: (Exception) -> Unit
     ) {
-        lotteriesRef
-            .whereArrayContains("campsiteIds", campsiteId)
-            .get()
-            .addOnSuccessListener { snapshot ->
-                val lotteries = try {
-                    snapshot.toObjects(Lottery::class.java)
-                } catch (error: Exception) {
-                    onFailure(error)
-                    return@addOnSuccessListener
-                }
-
+        readLotteries(
+            query = lotteriesRef.whereArrayContains(
+                "campsiteIds",
+                campsiteId
+            ),
+            onSuccess = { lotteries ->
                 val now = Timestamp.now()
 
-                val active = lotteries.filter { lottery ->
-                    val opens = lottery.registrationOpensAt
-                    val closes = lottery.registrationClosesAt
-
-                    lottery.status == "open" &&
-                            opens != null &&
-                            closes != null &&
-                            opens <= now &&
-                            now < closes
-                }
-
-                onSuccess(active)
-            }
-            .addOnFailureListener { error ->
-                onFailure(error)
-            }
+                onSuccess(
+                    lotteries.filter {
+                        it.status == "open" &&
+                                now >= it.registrationOpensAt!! &&
+                                now < it.registrationClosesAt!!
+                    }
+                )
+            },
+            onFailure = onFailure
+        )
     }
 
     /**
-     * Reads the current user's entry in a lottery.
+     * Returns a lottery's entries, ordered by join time.
+     * Use entrantId with UserRepository to display entrant profiles.
+     */
+    fun getWaitlist(
+        lotteryId: String,
+        onSuccess: (List<LotteryEntry>) -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        lotteriesRef.document(lotteryId)
+            .collection(Collections.ENTRIES)
+            .get()
+            .addOnSuccessListener {
+                onSuccess(
+                    it.toObjects(LotteryEntry::class.java)
+                        .sortedBy { entry -> entry.joinedAt }
+                )
+            }
+            .addOnFailureListener { onFailure(it) }
+    }
+
+    /**
+     * Reads the current user's entry and result.
      * Returns null if the user has not joined.
      */
     fun getMyEntry(
@@ -208,52 +213,26 @@ class LotteryRepository {
         onSuccess: (LotteryEntry?) -> Unit,
         onFailure: (Exception) -> Unit
     ) {
-        val uid = auth.currentUser?.uid
-
-        if (uid == null) {
-            onFailure(
-                IllegalStateException("Sign in first.")
-            )
-            return
-        }
-
         lotteriesRef.document(lotteryId)
             .collection(Collections.ENTRIES)
-            .document(uid)
+            .document(FirebaseProvider.requireUid())
             .get()
-            .addOnSuccessListener { snapshot ->
-                val entry = try {
-                    snapshot.toObject(LotteryEntry::class.java)
-                } catch (error: Exception) {
-                    onFailure(error)
-                    return@addOnSuccessListener
-                }
-
-                onSuccess(entry)
+            .addOnSuccessListener {
+                onSuccess(it.toObject(LotteryEntry::class.java))
             }
-            .addOnFailureListener { error ->
-                onFailure(error)
-            }
+            .addOnFailureListener { onFailure(it) }
     }
 
     /**
-     * Joins a lottery during its registration period.
-     * Repeated calls do not create duplicate entries.
+     * Joins during registration if waitlist capacity allows.
+     * Using the user's ID prevents duplicate entries.
      */
     fun joinWaitlist(
         lotteryId: String,
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
     ) {
-        val uid = auth.currentUser?.uid
-
-        if (uid == null) {
-            onFailure(
-                IllegalStateException("Sign in first.")
-            )
-            return
-        }
-
+        val uid = FirebaseProvider.requireUid()
         val lotteryRef = lotteriesRef.document(lotteryId)
 
         val entryRef = lotteryRef
@@ -262,29 +241,29 @@ class LotteryRepository {
 
         db.runTransaction { transaction ->
             val lottery = transaction.get(lotteryRef)
-                .toObject(Lottery::class.java)
-                ?: throw IllegalStateException(
-                    "Lottery was not found."
-                )
+                .toObject(Lottery::class.java)!!
 
             val existingEntry = transaction.get(entryRef)
             val now = Timestamp.now()
-            val opens = lottery.registrationOpensAt
-            val closes = lottery.registrationClosesAt
 
-            if (
-                lottery.status != "open" ||
-                opens == null ||
-                closes == null ||
-                now < opens ||
-                now >= closes
+            check(
+                lottery.status == "open" &&
+                        now >= lottery.registrationOpensAt!! &&
+                        now < lottery.registrationClosesAt!!
             ) {
-                throw IllegalStateException(
-                    "Registration is not open."
-                )
+                "Registration is not open."
             }
 
             if (!existingEntry.exists()) {
+                val capacity = lottery.waitlistCapacity
+
+                check(
+                    capacity == null ||
+                            lottery.entryCount < capacity
+                ) {
+                    "The waitlist is full."
+                }
+
                 transaction.set(
                     entryRef,
                     LotteryEntry(
@@ -308,51 +287,32 @@ class LotteryRepository {
 
             true
         }
-            .addOnSuccessListener {
-                onSuccess()
-            }
-            .addOnFailureListener { error ->
-                onFailure(error)
-            }
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onFailure(it) }
     }
 
     /**
      * Removes the current user from an undrawn waitlist.
-     * Selected entrants should use decline instead.
      */
     fun leaveWaitlist(
         lotteryId: String,
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
     ) {
-        val uid = auth.currentUser?.uid
-
-        if (uid == null) {
-            onFailure(
-                IllegalStateException("Sign in first.")
-            )
-            return
-        }
-
         val lotteryRef = lotteriesRef.document(lotteryId)
 
         val entryRef = lotteryRef
             .collection(Collections.ENTRIES)
-            .document(uid)
+            .document(FirebaseProvider.requireUid())
 
         db.runTransaction { transaction ->
             val lottery = transaction.get(lotteryRef)
-                .toObject(Lottery::class.java)
-                ?: throw IllegalStateException(
-                    "Lottery was not found."
-                )
+                .toObject(Lottery::class.java)!!
 
             val entry = transaction.get(entryRef)
 
-            if (lottery.status != "open") {
-                throw IllegalStateException(
-                    "The lottery has already been drawn."
-                )
+            check(lottery.status == "open") {
+                "The lottery has already been drawn."
             }
 
             if (entry.exists()) {
@@ -361,10 +321,7 @@ class LotteryRepository {
                 transaction.update(
                     lotteryRef,
                     mapOf(
-                        "entryCount" to maxOf(
-                            0L,
-                            lottery.entryCount - 1
-                        ),
+                        "entryCount" to lottery.entryCount - 1,
                         "updatedAt" to Timestamp.now()
                     )
                 )
@@ -372,22 +329,16 @@ class LotteryRepository {
 
             true
         }
-            .addOnSuccessListener {
-                onSuccess()
-            }
-            .addOnFailureListener { error ->
-                onFailure(error)
-            }
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onFailure(it) }
     }
 
     /**
-     * Randomly draws winners after registration closes.
+     * Draws winners after registration closes.
      *
-     * Saves entry results and winning notifications together.
-     * Repeating the call returns the existing winners.
-     *
-     * This transaction is intended for small class-demo waitlists.
-     * Large waitlists would need a server-side draw implementation.
+     * Saves entry results and win/loss notifications together.
+     * Respects notification preferences and excludes removed profiles.
+     * Repeated calls return the existing winners.
      */
     fun drawWinners(
         lotteryId: String,
@@ -405,18 +356,21 @@ class LotteryRepository {
 
                 db.runTransaction { transaction ->
                     val lottery = transaction.get(lotteryRef)
-                        .toObject(Lottery::class.java)
-                        ?: throw IllegalStateException(
-                            "Lottery was not found."
-                        )
+                        .toObject(Lottery::class.java)!!
 
-                    val entries = entryRefs.map { ref ->
-                        transaction.get(ref)
+                    val entryResults = entryRefs.map {
+                        transaction.get(it)
                             .toObject(LotteryEntry::class.java)
-                            ?: throw IllegalStateException(
-                                "The waitlist changed. Try again."
-                            )
                     }
+
+                    check(
+                        entryResults.none { it == null } &&
+                                entryResults.size.toLong() == lottery.entryCount
+                    ) {
+                        "The waitlist changed. Try the draw again."
+                    }
+
+                    val entries = entryResults.filterNotNull()
 
                     if (lottery.status == "drawn") {
                         entries.filter {
@@ -428,39 +382,40 @@ class LotteryRepository {
                         }.map { it.entrantId }
                     } else {
                         val now = Timestamp.now()
-                        val closes = lottery.registrationClosesAt
 
-                        if (
-                            lottery.status != "open" ||
-                            closes == null ||
-                            now < closes
+                        check(
+                            lottery.status == "open" &&
+                                    now >= lottery.registrationClosesAt!!
                         ) {
-                            throw IllegalStateException(
-                                "Registration has not ended."
-                            )
+                            "Registration has not ended."
                         }
 
-                        if (
-                            entries.size.toLong() != lottery.entryCount ||
-                            entries.any { it.status != "waiting" }
-                        ) {
-                            throw IllegalStateException(
-                                "The waitlist changed. Try again."
-                            )
+                        // Read profiles before writing any results.
+                        val users = entries.associate { entry ->
+                            val userRef = db.collection(Collections.USERS)
+                                .document(entry.entrantId)
+
+                            entry.entrantId to transaction.get(userRef)
+                                .toObject(User::class.java)
                         }
 
-                        val numberToSelect = minOf(
+                        val eligibleEntries = entries.filter {
+                            users[it.entrantId]?.status == "active"
+                        }
+
+                        val winnerCount = minOf(
                             lottery.winnerCount,
-                            entries.size.toLong()
+                            eligibleEntries.size.toLong()
                         ).toInt()
 
-                        val winners = entries
-                            .take(numberToSelect)
+                        val winners = eligibleEntries
+                            .take(winnerCount)
                             .map { it.entrantId }
                             .toSet()
 
                         entries.forEach { entry ->
                             val won = entry.entrantId in winners
+                            val user = users[entry.entrantId]
 
                             val entryRef = lotteryRef
                                 .collection(Collections.ENTRIES)
@@ -479,7 +434,11 @@ class LotteryRepository {
                                 )
                             )
 
-                            if (won) {
+                            if (
+                                user != null &&
+                                user.status == "active" &&
+                                user.notificationsEnabled
+                            ) {
                                 val notificationRef = db
                                     .collection(Collections.NOTIFICATIONS)
                                     .document()
@@ -489,9 +448,21 @@ class LotteryRepository {
                                     AppNotification(
                                         senderId = lottery.ownerId,
                                         recipientId = entry.entrantId,
-                                        type = "lottery_won",
-                                        title = "You won the lottery!",
-                                        body = "You can reserve a stay from ${lottery.title}.",
+                                        type = if (won) {
+                                            "lottery_won"
+                                        } else {
+                                            "lottery_lost"
+                                        },
+                                        title = if (won) {
+                                            "You won the lottery!"
+                                        } else {
+                                            "Lottery result"
+                                        },
+                                        body = if (won) {
+                                            "You can reserve a stay from ${lottery.title}."
+                                        } else {
+                                            "You were not selected for ${lottery.title}."
+                                        },
                                         lotteryId = lotteryId,
                                         deliveryStatus = "in_app",
                                         createdAt = now,
@@ -513,16 +484,10 @@ class LotteryRepository {
                         winners.toList()
                     }
                 }
-                    .addOnSuccessListener { winners ->
-                        onSuccess(winners)
-                    }
-                    .addOnFailureListener { error ->
-                        onFailure(error)
-                    }
+                    .addOnSuccessListener { onSuccess(it) }
+                    .addOnFailureListener { onFailure(it) }
             }
-            .addOnFailureListener { error ->
-                onFailure(error)
-            }
+            .addOnFailureListener { onFailure(it) }
     }
 
     /**
@@ -533,55 +498,94 @@ class LotteryRepository {
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
     ) {
-        val uid = auth.currentUser?.uid
-
-        if (uid == null) {
-            onFailure(
-                IllegalStateException("Sign in first.")
-            )
-            return
-        }
-
         val entryRef = lotteriesRef.document(lotteryId)
             .collection(Collections.ENTRIES)
-            .document(uid)
+            .document(FirebaseProvider.requireUid())
 
         db.runTransaction { transaction ->
             val entry = transaction.get(entryRef)
-                .toObject(LotteryEntry::class.java)
-                ?: throw IllegalStateException(
-                    "Lottery entry was not found."
-                )
+                .toObject(LotteryEntry::class.java)!!
 
-            if (
-                entry.status != "selected" &&
-                entry.status != "declined"
-            ) {
-                throw IllegalStateException(
-                    "Only an unused winning opportunity can be declined."
-                )
+            check(entry.status == "selected") {
+                "Only an unused winning opportunity can be declined."
             }
 
-            if (entry.status == "selected") {
-                val now = Timestamp.now()
+            val now = Timestamp.now()
 
-                transaction.update(
-                    entryRef,
-                    mapOf(
-                        "status" to "declined",
-                        "respondedAt" to now,
-                        "updatedAt" to now
-                    )
+            transaction.update(
+                entryRef,
+                mapOf(
+                    "status" to "declined",
+                    "respondedAt" to now,
+                    "updatedAt" to now
                 )
-            }
+            )
 
             true
         }
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onFailure(it) }
+    }
+
+    private fun readLotteries(
+        query: Query,
+        onSuccess: (List<Lottery>) -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        query.get()
             .addOnSuccessListener {
-                onSuccess()
+                onSuccess(it.toObjects(Lottery::class.java))
             }
-            .addOnFailureListener { error ->
-                onFailure(error)
-            }
+            .addOnFailureListener { onFailure(it) }
+    }
+
+    private fun validateLottery(lottery: Lottery): String? {
+        if (lottery.campsiteIds.isEmpty()) {
+            return "Choose at least one campsite."
+        }
+
+        if (lottery.winnerCount < 1) {
+            return "Choose at least one winner."
+        }
+
+        val capacity = lottery.waitlistCapacity
+
+        if (capacity != null && capacity < 1) {
+            return "Capacity must be positive or left unset."
+        }
+
+        val registrationStart = lottery.registrationOpensAt
+            ?: return "Set the registration start time."
+
+        val registrationEnd = lottery.registrationClosesAt
+            ?: return "Set the registration end time."
+
+        val bookingStart = lottery.bookingOpensAt
+            ?: return "Set the booking start time."
+
+        val bookingEnd = lottery.bookingClosesAt
+            ?: return "Set the booking end time."
+
+        if (registrationStart >= registrationEnd) {
+            return "Registration must end after it starts."
+        }
+
+        if (bookingStart >= bookingEnd) {
+            return "Booking must end after it starts."
+        }
+
+        if (bookingEnd <= registrationEnd) {
+            return "Booking must remain open after registration ends."
+        }
+
+        if (
+            lottery.stayStartDate.isBlank() ||
+            lottery.stayEndDate.isBlank() ||
+            lottery.stayStartDate >= lottery.stayEndDate
+        ) {
+            return "Set the stay dates using YYYY-MM-DD, with the end after the start."
+        }
+
+        return null
     }
 }
