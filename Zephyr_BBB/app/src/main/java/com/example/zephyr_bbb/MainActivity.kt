@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             Zephyr_BBBTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    FirebaseCheckScreen(
+                    CustomNavigationBar(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
