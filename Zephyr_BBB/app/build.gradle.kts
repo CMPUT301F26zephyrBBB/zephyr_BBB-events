@@ -58,4 +58,5 @@ dependencies {
     implementation("com.google.firebase:firebase-functions")
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-messaging")
+    implementation("androidx.navigation:navigation-compose:2.8.8")
 }
