@@ -23,7 +23,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-
+import com.example.zephyr_bbb.admin.AdminCampsiteScreen
+import com.example.zephyr_bbb.admin.AdminDashboardScreen
+import com.example.zephyr_bbb.admin.AdminImageScreen
+import com.example.zephyr_bbb.admin.AdminNotificationLogScreen
+import com.example.zephyr_bbb.admin.AdminUserScreen
 @Composable
 // Creates the menu for going through the screens with the nav bar
 fun CustomNavigationBar(modifier: Modifier = Modifier) {
@@ -36,31 +40,103 @@ fun CustomNavigationBar(modifier: Modifier = Modifier) {
     Scaffold(
         modifier = modifier,
         bottomBar = {
-            NavigationBottomBar(
-                currentRoute = currentRoute,
-                onItemClick = {clickedItem ->
-                    if (currentRoute != clickedItem.route) {
-                        navController.navigate(clickedItem.route) {
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
+
+            // only show bottom navigation on the main screens
+            if (currentRoute in NavigationBottomBarItem.items.map { it.route }) {
+
+                NavigationBottomBar(
+                    currentRoute = currentRoute,
+                    onItemClick = { clickedItem ->
+                        if (currentRoute != clickedItem.route) {
+                            navController.navigate(clickedItem.route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
                             }
-                            launchSingleTop = true
-                            restoreState = true
                         }
                     }
-                }
-            )
+                )
+            }
         }
-    ) {contentPadding ->
+    ) { contentPadding ->
         NavHost(
             navController = navController,
             startDestination = startRoute,
             modifier = Modifier.padding(contentPadding)
         ) {
-            composable("home") { HomeScreen() }
-            composable("campsites") { CampsitesScreen() }
-            composable("lotteries") { LotteriesScreen() }
-            composable("reservations") { ReservationsScreen() }
+            composable("home") {
+                HomeScreen(
+                    onAdminClick = {
+                        navController.navigate("admin")
+                    }
+                )
+            }
+
+            composable("campsites") {
+                CampsitesScreen()
+            }
+
+            composable("lotteries") {
+                LotteriesScreen()
+            }
+
+            composable("reservations") {
+                ReservationsScreen()
+            }
+
+            composable("admin") {
+                AdminDashboardScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onProfilesClick = {
+                        navController.navigate("admin_profiles")
+                    },
+                    onCampsitesClick = {
+                        navController.navigate("admin_campsites")
+                    },
+                    onImagesClick = {
+                        navController.navigate("admin_images")
+                    },
+                    onNotificationsClick = {
+                        navController.navigate("admin_notifications")
+                    }
+                )
+            }
+
+            composable("admin_profiles") {
+                AdminUserScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("admin_campsites") {
+                AdminCampsiteScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("admin_images") {
+                AdminImageScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("admin_notifications") {
+                AdminNotificationLogScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
         }
     }
 }
