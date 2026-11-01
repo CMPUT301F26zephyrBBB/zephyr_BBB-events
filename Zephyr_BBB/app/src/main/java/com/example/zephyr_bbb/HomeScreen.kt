@@ -1,5 +1,6 @@
 package com.example.zephyr_bbb
 
+import android.R.attr.onClick
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,8 +22,13 @@ import com.example.zephyr_bbb.database.repository.UserRepository
 // main home screen
 @Composable
 fun HomeScreen(
-    onAdminClick: () -> Unit
+    onOwnerClick: () -> Unit,
+    onAdminClick: () -> Unit,
 ) {
+
+    var isOwner by remember {
+        mutableStateOf(false)
+    }
 
     var isAdmin by remember {
         mutableStateOf(false)
@@ -33,9 +39,11 @@ fun HomeScreen(
         UserRepository().getOrCreateCurrentUser(
             onSuccess = { user ->
                 isAdmin = "admin" in user.roles
+                isOwner = "owner" in user.roles
             },
             onFailure = {
                 isAdmin = false
+                isOwner = false
             }
         )
     }
@@ -61,5 +69,16 @@ fun HomeScreen(
                 Text("Admin Dashboard")
             }
         }
+
+        // Only owners can see the home page for owners
+        if (isOwner) {
+            Button(
+                onClick = onOwnerClick,
+                modifier = Modifier.fillMaxWidth()
+            ){
+                Text("Owner Dashboard")
+            }
+        }
+
     }
 }
