@@ -204,7 +204,7 @@ fun OwnerAddCampsiteScreen(
         OutlinedTextField(
             value = campsiteTags,
             onValueChange = { campsiteTags = it },
-            label = { Text("Enter Tags (comma-separated, e.g. wifi, tent, lake)") },
+            label = { Text("Enter Tags (comma-separated, Ex wifi, tent)") },
             modifier = Modifier.fillMaxWidth()
         )
         // Create button that is used once everything is inputted

@@ -30,6 +30,7 @@ import com.example.zephyr_bbb.admin.AdminNotificationLogScreen
 import com.example.zephyr_bbb.admin.AdminUserScreen
 import com.example.zephyr_bbb.owner.OwnerAddCampsiteScreen
 import com.example.zephyr_bbb.owner.OwnerDashboardScreen
+import com.example.zephyr_bbb.owner.OwnerEditCampsiteScreen
 import com.example.zephyr_bbb.owner.OwnerMyCampsitesScreen
 import com.example.zephyr_bbb.owner.OwnerMyLotteriesScreen
 import com.example.zephyr_bbb.owner.OwnerMyReservationsScreen
@@ -175,6 +176,9 @@ fun CustomNavigationBar(modifier: Modifier = Modifier) {
                     },
                     onAddCampsiteClick = {
                         navController.navigate("owner_add_campsite")
+                    },
+                    onCampsiteClick = {campsite->
+                        navController.navigate("owner_edit_campsite/${campsite.id}")
                     }
                 )
             }
@@ -205,6 +209,16 @@ fun CustomNavigationBar(modifier: Modifier = Modifier) {
 
             composable("owner_add_campsite") {
                 OwnerAddCampsiteScreen (
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("owner_edit_campsite/{campsiteEditId}"){backStackEntry->
+                val campsiteId = backStackEntry.arguments?.getString("campsiteEditId") ?: ""
+                OwnerEditCampsiteScreen(
+                    campsiteEditId = campsiteId,
                     onBackClick = {
                         navController.popBackStack()
                     }
