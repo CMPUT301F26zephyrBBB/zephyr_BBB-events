@@ -28,6 +28,14 @@ import com.example.zephyr_bbb.admin.AdminDashboardScreen
 import com.example.zephyr_bbb.admin.AdminImageScreen
 import com.example.zephyr_bbb.admin.AdminNotificationLogScreen
 import com.example.zephyr_bbb.admin.AdminUserScreen
+import com.example.zephyr_bbb.owner.OwnerAddCampsiteScreen
+import com.example.zephyr_bbb.owner.OwnerDashboardScreen
+import com.example.zephyr_bbb.owner.OwnerEditCampsiteScreen
+import com.example.zephyr_bbb.owner.OwnerMyCampsitesScreen
+import com.example.zephyr_bbb.owner.OwnerMyLotteriesScreen
+import com.example.zephyr_bbb.owner.OwnerMyReservationsScreen
+import com.example.zephyr_bbb.owner.OwnerNotificationsScreen
+
 @Composable
 // Creates the menu for going through the screens with the nav bar
 fun CustomNavigationBar(modifier: Modifier = Modifier) {
@@ -70,6 +78,9 @@ fun CustomNavigationBar(modifier: Modifier = Modifier) {
                 HomeScreen(
                     onAdminClick = {
                         navController.navigate("admin")
+                    },
+                    onOwnerClick = {
+                        navController.navigate("owner")
                     }
                 )
             }
@@ -132,6 +143,82 @@ fun CustomNavigationBar(modifier: Modifier = Modifier) {
 
             composable("admin_notifications") {
                 AdminNotificationLogScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("owner") {
+                OwnerDashboardScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onCampsitesClick = {
+                        navController.navigate("owner_campsites")
+                    },
+                    onLotteriesClick = {
+                        navController.navigate("owner_lotteries")
+                    },
+                    onReservationsClick =  {
+                        navController.navigate("owner_reservations")
+                    },
+                    onNotificationsClick = {
+                        navController.navigate("owner_notifications")
+                    }
+                )
+            }
+
+            composable("owner_campsites") {
+                OwnerMyCampsitesScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onAddCampsiteClick = {
+                        navController.navigate("owner_add_campsite")
+                    },
+                    onCampsiteClick = {campsite->
+                        navController.navigate("owner_edit_campsite/${campsite.id}")
+                    }
+                )
+            }
+
+            composable("owner_lotteries") {
+                OwnerMyLotteriesScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("owner_reservations") {
+                OwnerMyReservationsScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("owner_notifications") {
+                OwnerNotificationsScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("owner_add_campsite") {
+                OwnerAddCampsiteScreen (
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("owner_edit_campsite/{campsiteEditId}"){backStackEntry->
+                val campsiteId = backStackEntry.arguments?.getString("campsiteEditId") ?: ""
+                OwnerEditCampsiteScreen(
+                    campsiteEditId = campsiteId,
                     onBackClick = {
                         navController.popBackStack()
                     }
