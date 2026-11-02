@@ -29,7 +29,15 @@ import com.example.zephyr_bbb.database.repository.CampsiteRepository
 import com.example.zephyr_bbb.database.repository.UserRepository
 
 
-// The screen used to create a campsite
+/**
+ * A composable function that creates the screen that users see once they click the add button on the
+ * OwnerMyCampsites screen
+ * Allows the user to add/create new campsite objects. It provides the user with text input fields
+ * to enter all the information about their campsite including, Name, location, description, price,
+ * tags, image, cancellation policy, rules, max occupancy
+ *
+ * @param onBackClick  is invoked when the user clicks the back button
+ */
 @Composable
 fun OwnerAddCampsiteScreen(
     onBackClick: () -> Unit
@@ -37,54 +45,42 @@ fun OwnerAddCampsiteScreen(
     var errorMessage by remember {
         mutableStateOf<String?>("")
     }
-
     var campsiteRepository = remember {
         CampsiteRepository()
     }
     var userRepository = remember {
         UserRepository()
     }
-
     var campsiteName by remember {
         mutableStateOf("")
     }
-
     var campsiteDescription by remember {
         mutableStateOf("")
     }
-
     var campsiteLocation by remember {
         mutableStateOf("")
     }
-
     var maxOccupancy by remember {
         mutableStateOf("")
     }
-
     var price by remember {
         mutableStateOf("")
     }
-
     var campsiteRules by remember {
         mutableStateOf("")
     }
-
     var campsiteCancellationPolicy by remember {
         mutableStateOf("")
     }
-
     var campsiteOwnerId by remember {
         mutableStateOf("")
     }
-
     var promoImageId by remember {
         mutableStateOf("")
     }
-
     var campsiteTags by remember {
         mutableStateOf("")
     }
-
     var isLoading by remember {
         mutableStateOf(true)
     }
@@ -115,7 +111,8 @@ fun OwnerAddCampsiteScreen(
             .fillMaxSize()
             .statusBarsPadding()
             // Found out about the verticalScroll element from Google Gemini, "In Android Studio kotlin
-            // how can I make it so I can scroll down a column of outlined text fields"
+            // how can I make it so I can scroll down a column of outlined text fields" November 1, 2026
+            // More info in the doc folder in the file "SethCitation.txt"
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {

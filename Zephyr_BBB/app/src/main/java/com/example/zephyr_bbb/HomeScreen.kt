@@ -1,6 +1,5 @@
 package com.example.zephyr_bbb
 
-import android.R.attr.onClick
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,7 +18,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.zephyr_bbb.database.repository.UserRepository
 
-// main home screen
+/**
+ * Composable function that displays the main screen for the app
+ * This screen gets the users current roles assigned to them and allows them to see different
+ * things depending on what there permissions are.
+ * If the user is an admin it shows a button that leads to an admin dashboard
+ * If the user is a campsite owner it shows a button that leads to an owner dashboard
+ *
+ * @param onAdminClick is invoked when the user clicks the admin dashboard button
+ * @param onOwnerClick is invoked when the user clicks the owner dashboard button
+ */
 @Composable
 fun HomeScreen(
     onOwnerClick: () -> Unit,

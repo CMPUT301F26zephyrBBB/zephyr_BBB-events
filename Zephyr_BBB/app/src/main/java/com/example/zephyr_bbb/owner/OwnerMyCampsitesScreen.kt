@@ -1,6 +1,7 @@
 package com.example.zephyr_bbb.owner
 
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,14 +24,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import com.example.zephyr_bbb.database.model.Campsite
 import com.example.zephyr_bbb.database.repository.CampsiteRepository
+import com.example.zephyr_bbb.ui.theme.generateQRCode
 import kotlin.collections.emptyList
 
 
-// Function that creates the screen that the user sees when they want to see all there listings for
-// campsites, and also to add new listings
+/**
+ * Composable function that creates and composes a screen that is seen by the owner when they click
+ * on a campsite on the owner dashboard.
+ * This function makes a screen that lists out the current users campsites, which are all clickable
+ * and which when clicked lead to a different screen that allows you to edit them. Also has a button
+ * that allows the user to add a new campsite
+ *
+ * @param onBackClick is invoked when the user clicks the back button
+ * @param onAddCampsiteClick is invoked when the user clicks the add button
+ * @param onCampsiteClick is invoked when the user clicks on a campsite object
+ */
 @Composable
 fun OwnerMyCampsitesScreen(
     onBackClick: () -> Unit,
@@ -66,6 +79,10 @@ fun OwnerMyCampsitesScreen(
     }
     // A campsite object that appears on the screen
     selectedCampsite?.let { campsite ->
+        val qrBitmap = remember(campsite.id){
+            generateQRCode(campsite.id)
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -87,6 +104,14 @@ fun OwnerMyCampsitesScreen(
             Text("Maximum occupancy: ${campsite.maxOccupancy}")
             Text("Price per night: ${campsite.pricePerNightCents / 100.0}")
             Text("Status: ${campsite.status}")
+
+            Text("Campsite QR Code:")
+            Image(
+                bitmap = qrBitmap.asImageBitmap(),
+                contentDescription = "QR Code for ${campsite.name}",
+                modifier = Modifier.size(200.dp)
+            )
+
             Button(
                 onClick = {
                     selectedCampsite = null
