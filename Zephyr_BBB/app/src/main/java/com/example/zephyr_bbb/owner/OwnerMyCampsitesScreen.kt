@@ -144,6 +144,12 @@ fun OwnerMyCampsitesScreen(
             }
 
             Text("My Campsites")
+
+            Button(
+                onClick = onAddCampsiteClick
+            ){
+                Text("Add Campsite")
+            }
         }
         // Makes and shows all the campsite objects on the screen
         // In a scrollable list
@@ -170,19 +176,6 @@ fun OwnerMyCampsitesScreen(
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
-            }
-        }
-        // Button that stays at the bottom of the screen
-        Spacer(modifier = Modifier.weight(1f))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ){
-            Button(
-                onClick = onAddCampsiteClick
-            ){
-                Text("Add Campsite")
             }
         }
     }
