@@ -27,7 +27,15 @@ import com.example.zephyr_bbb.database.model.Campsite
 import com.example.zephyr_bbb.database.repository.CampsiteRepository
 
 
-// Creates the screen seen by the campsite owner, used to edit a campsite listing
+/**
+ * A composable function that creates a screen for users with owner permissions to use to edit their
+ * existing campsite objects
+ * has a multiple text input fields that allow the user to input or change the information that is
+ * on their campsite listing.
+ *
+ * @param campsiteEditId The unique id of the campsite that the user wants to edit
+ * @param onBackClick is invoked when the user clicks the back button
+ */
 @Composable
 fun OwnerEditCampsiteScreen(
     campsiteEditId: String,

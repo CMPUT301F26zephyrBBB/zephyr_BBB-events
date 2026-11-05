@@ -36,9 +36,20 @@ import com.example.zephyr_bbb.owner.OwnerMyLotteriesScreen
 import com.example.zephyr_bbb.owner.OwnerMyReservationsScreen
 import com.example.zephyr_bbb.owner.OwnerNotificationsScreen
 
+
+/**
+ * Composable function that displays the bottom navigation bar of the app
+ * The function manages a main navController nad uses a Scaffold function to create and contain the
+ * layout of the navigation bar. The function also handles how a user can move from screen to screen
+ *
+ * @param modifier Used to adjust the layout behaviours if the scaffold
+ */
+
 @Composable
 // Creates the menu for going through the screens with the nav bar
-fun CustomNavigationBar(modifier: Modifier = Modifier) {
+fun CustomNavigationBar(
+    modifier: Modifier = Modifier
+) {
     val navController = rememberNavController()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -228,7 +239,13 @@ fun CustomNavigationBar(modifier: Modifier = Modifier) {
     }
 }
 
-// Data Class for the individual items in the NavigationBar
+/**
+ * Data class representing a item within the bottom navigation bar
+ *
+ * @property label A name applied to the item that appears under the icon that the user sees
+ * @property route The destination that the button takes a user to
+ * @property icon The image that appears on the bottom navigation bar that the user sees
+ */
 data class NavigationBottomBarItem (
     val label: String,
     val route: String,
@@ -246,7 +263,15 @@ data class NavigationBottomBarItem (
     }
 }
 
-// Creates the navigation bar at the bottom of the screen
+/**
+ * Composable function that creates and shows the bottom navigation bar
+ * It goes through the collection of NavigationBottomBarItem.items to create and display the individual
+ * buttons that are at the bottom of the screen in the navigation bar.
+ *
+ * @param currentRoute The route of the current bottom navigation button that is pressed or highlighted
+ * @param onItemClick A callback that is invoked when a user clicks one of the bottom navigation buttons
+ * @param modifier Used to adjust the layout behaviours if the scaffold
+ */
 @Composable
 fun NavigationBottomBar(
     currentRoute: String?,
