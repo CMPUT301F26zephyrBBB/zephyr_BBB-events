@@ -19,16 +19,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.zephyr_bbb.admin.AdminCampsiteScreen
 import com.example.zephyr_bbb.admin.AdminDashboardScreen
 import com.example.zephyr_bbb.admin.AdminImageScreen
 import com.example.zephyr_bbb.admin.AdminNotificationLogScreen
 import com.example.zephyr_bbb.admin.AdminUserScreen
 import com.example.zephyr_bbb.owner.OwnerAddCampsiteScreen
+import com.example.zephyr_bbb.owner.OwnerCreateLotteryScreen
 import com.example.zephyr_bbb.owner.OwnerDashboardScreen
 import com.example.zephyr_bbb.owner.OwnerEditCampsiteScreen
 import com.example.zephyr_bbb.owner.OwnerMyCampsitesScreen
@@ -190,12 +193,36 @@ fun CustomNavigationBar(
                     },
                     onCampsiteClick = {campsite->
                         navController.navigate("owner_edit_campsite/${campsite.id}")
+                    },
+                    onCreateLotteryClick = {campsite->
+                        navController.navigate("owner_create_lottery?campsiteId=${campsite.id}")
                     }
                 )
             }
 
             composable("owner_lotteries") {
                 OwnerMyLotteriesScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onCreateLotteryClick = {
+                        navController.navigate("owner_create_lottery")
+                    }
+                )
+            }
+
+            composable(
+                route = "owner_create_lottery?campsiteId={campsiteId}",
+                arguments = listOf(
+                    navArgument("campsiteId") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) {backStackEntry->
+                OwnerCreateLotteryScreen(
+                    preselectedCampsiteId = backStackEntry.arguments?.getString("campsiteId"),
                     onBackClick = {
                         navController.popBackStack()
                     }
