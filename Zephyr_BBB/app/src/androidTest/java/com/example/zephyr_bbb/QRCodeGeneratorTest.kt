@@ -1,7 +1,6 @@
 package com.example.zephyr_bbb
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.example.zephyr_bbb.ui.theme.generateQRCode
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertNotNull
 import org.junit.Test

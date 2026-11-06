@@ -1,4 +1,4 @@
-package com.example.zephyr_bbb.ui.theme
+package com.example.zephyr_bbb
 
 import android.graphics.Bitmap
 import android.graphics.Color

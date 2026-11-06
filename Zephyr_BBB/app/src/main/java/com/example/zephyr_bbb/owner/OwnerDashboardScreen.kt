@@ -2,6 +2,7 @@ package com.example.zephyr_bbb.owner
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -9,13 +10,25 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 
 
-// Creates Dashboard for the Owner
-// Which has buttons that navigate to My Campsites, My Lotteries, Reservations, and Notifications
+/**
+ * Composable function that displays the main screen for the app
+ * This screen gets the users current roles assigned to them and allows them to see different
+ * things depending on what there permissions are.
+ * If the user is an admin it shows a button that leads to an admin dashboard
+ * If the user is a campsite owner it shows a button that leads to an owner dashboard
+ *
+ * @param onBackClick is invoked when the user clicks the back button
+ * @param onCampsitesClick is invoked when the user clicks the My Campsites Button
+ * @param onLotteriesClick is invoked when the user clicks the My Lotteries Button
+ * @param onReservationsClick is invoked when the user clicks the Reservations Button
+ * @param onNotificationsClick is invoked when the user clicks the Notifications Button
+ */
 @Composable
 fun OwnerDashboardScreen(
     onBackClick: () -> Unit,
@@ -31,13 +44,20 @@ fun OwnerDashboardScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Back Button
-        Button(
-            onClick = onBackClick
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Back")
+            // Back Button
+            Button(
+                onClick = onBackClick
+            ) {
+                Text("<")
+            }
+            Text("Campsite Owner Dashboard")
         }
-        Text("Campsite Owner Dashboard")
+        Text("Welcome, Owner")
         // Navigates to Campsites
         Button(
             onClick = onCampsitesClick,

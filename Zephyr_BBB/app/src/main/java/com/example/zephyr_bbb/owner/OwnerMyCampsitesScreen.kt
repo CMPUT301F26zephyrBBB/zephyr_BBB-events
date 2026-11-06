@@ -5,7 +5,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -28,7 +27,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import com.example.zephyr_bbb.database.model.Campsite
 import com.example.zephyr_bbb.database.repository.CampsiteRepository
-import com.example.zephyr_bbb.ui.theme.generateQRCode
+import com.example.zephyr_bbb.generateQRCode
 import kotlin.collections.emptyList
 
 
@@ -95,7 +94,7 @@ fun OwnerMyCampsitesScreen(
                     selectedCampsite = null
                 }
             ) {
-                Text("Back")
+                Text("<")
             }
             Text("Campsite Details")
             Text("Name: ${campsite.name}")
@@ -140,7 +139,7 @@ fun OwnerMyCampsitesScreen(
             Button(
                 onClick = onBackClick
             ) {
-                Text("Back")
+                Text("<")
             }
 
             Text("My Campsites")
@@ -151,6 +150,7 @@ fun OwnerMyCampsitesScreen(
                 Text("Add Campsite")
             }
         }
+        Text("${campsites.size} registered campsites")
         // Makes and shows all the campsite objects on the screen
         // In a scrollable list
         LazyColumn {
