@@ -35,6 +35,7 @@ import com.example.zephyr_bbb.entrant.CampsiteDetailsScreen
 import com.example.zephyr_bbb.entrant.CampsiteDetailsViewModel
 import com.example.zephyr_bbb.entrant.CampsiteFilterScreen
 import com.example.zephyr_bbb.entrant.CampsiteSearchViewModel
+import com.example.zephyr_bbb.entrant.QrScanScreen
 import com.example.zephyr_bbb.owner.OwnerAddCampsiteScreen
 import com.example.zephyr_bbb.owner.OwnerCreateLotteryScreen
 import com.example.zephyr_bbb.owner.OwnerDashboardScreen
@@ -104,6 +105,23 @@ fun CustomNavigationBar(
                     },
                     onOwnerClick = {
                         navController.navigate("owner")
+                    },
+                    onScanClick = {
+                        navController.navigate("qr_scan")
+                    }
+                )
+            }
+
+            composable("qr_scan") {
+                QrScanScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onCampsiteScanned = { campsiteId ->
+                        // Leave the scanner out of the back stack so Back from the details goes home
+                        navController.navigate("campsite_details/$campsiteId") {
+                            popUpTo("qr_scan") { inclusive = true }
+                        }
                     }
                 )
             }
