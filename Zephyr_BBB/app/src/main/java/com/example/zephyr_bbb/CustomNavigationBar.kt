@@ -19,22 +19,33 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.zephyr_bbb.admin.AdminCampsiteScreen
 import com.example.zephyr_bbb.admin.AdminDashboardScreen
 import com.example.zephyr_bbb.admin.AdminImageScreen
 import com.example.zephyr_bbb.admin.AdminNotificationLogScreen
 import com.example.zephyr_bbb.admin.AdminUserScreen
+import com.example.zephyr_bbb.entrant.EntrantReservationsScreen
+import com.example.zephyr_bbb.entrant.NotificationsScreen
+import com.example.zephyr_bbb.entrant.ReservationConfirmationScreen
+import com.example.zephyr_bbb.entrant.ReserveScreen
+import com.example.zephyr_bbb.entrant.WinScreen
+import com.example.zephyr_bbb.entrant.ProfileScreen
 import com.example.zephyr_bbb.owner.OwnerAddCampsiteScreen
+import com.example.zephyr_bbb.owner.OwnerCreateLotteryScreen
 import com.example.zephyr_bbb.owner.OwnerDashboardScreen
 import com.example.zephyr_bbb.owner.OwnerEditCampsiteScreen
 import com.example.zephyr_bbb.owner.OwnerMyCampsitesScreen
 import com.example.zephyr_bbb.owner.OwnerMyLotteriesScreen
 import com.example.zephyr_bbb.owner.OwnerMyReservationsScreen
 import com.example.zephyr_bbb.owner.OwnerNotificationsScreen
+import com.example.zephyr_bbb.owner.OwnerEditLotteryScreen
+import com.example.zephyr_bbb.owner.OwnerLotteryDetailsScreen
 
 
 /**
@@ -105,7 +116,80 @@ fun CustomNavigationBar(
             }
 
             composable("reservations") {
-                ReservationsScreen()
+                EntrantReservationsScreen(
+                    onProfileClick = {
+                        navController.navigate("profile")
+                    },
+                    onNotificationsClick = {
+                        navController.navigate("notifications")
+                    },
+                    onReservationClick = { reservationId ->
+                        navController.navigate("confirmation/$reservationId")
+                    }
+                )
+            }
+
+            // ---------- Entrant: account and reservations ----------
+
+            composable("notifications") {
+                NotificationsScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onWinClick = { lotteryId ->
+                        navController.navigate("win/$lotteryId")
+                    },
+                    onReservationClick = { reservationId ->
+                        navController.navigate("confirmation/$reservationId")
+                    }
+                )
+            }
+
+            composable("win/{lotteryId}") { backStackEntry ->
+                val lotteryId = backStackEntry.arguments?.getString("lotteryId") ?: ""
+                WinScreen(
+                    lotteryId = lotteryId,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onReserveClick = { id ->
+                        navController.navigate("reserve/$id")
+                    }
+                )
+            }
+
+            composable("reserve/{lotteryId}") { backStackEntry ->
+                val lotteryId = backStackEntry.arguments?.getString("lotteryId") ?: ""
+                ReserveScreen(
+                    lotteryId = lotteryId,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onReserved = { reservationId ->
+                        // Remove the win and reserve screens so Back doesn't return to them
+                        navController.navigate("confirmation/$reservationId") {
+                            popUpTo("notifications")
+                        }
+                    }
+                )
+            }
+
+            composable("confirmation/{reservationId}") { backStackEntry ->
+                val reservationId = backStackEntry.arguments?.getString("reservationId") ?: ""
+                ReservationConfirmationScreen(
+                    reservationId = reservationId,
+                    onDoneClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("profile") {
+                ProfileScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
             }
 
             composable("admin") {
@@ -190,12 +274,62 @@ fun CustomNavigationBar(
                     },
                     onCampsiteClick = {campsite->
                         navController.navigate("owner_edit_campsite/${campsite.id}")
+                    },
+                    onCreateLotteryClick = {campsite->
+                        navController.navigate("owner_create_lottery?campsiteId=${campsite.id}")
                     }
                 )
             }
 
             composable("owner_lotteries") {
                 OwnerMyLotteriesScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onCreateLotteryClick = {
+                        navController.navigate("owner_create_lottery")
+                    },
+                    onLotteryClick = {lottery->
+                        navController.navigate("owner_lottery_details/${lottery.id}")
+                    }
+                )
+            }
+
+            composable(
+                route = "owner_create_lottery?campsiteId={campsiteId}",
+                arguments = listOf(
+                    navArgument("campsiteId") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) {backStackEntry->
+                OwnerCreateLotteryScreen(
+                    preselectedCampsiteId = backStackEntry.arguments?.getString("campsiteId"),
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("owner_lottery_details/{lotteryId}") { backStackEntry ->
+                val lotteryId = backStackEntry.arguments?.getString("lotteryId") ?: ""
+                OwnerLotteryDetailsScreen(
+                    lotteryId = lotteryId,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onEditLotteryClick = { id ->
+                        navController.navigate("owner_edit_lottery/$id")
+                    }
+                )
+            }
+
+            composable("owner_edit_lottery/{lotteryEditId}") {backStackEntry->
+                val lotteryId = backStackEntry.arguments?.getString("lotteryEditId") ?: ""
+                OwnerEditLotteryScreen(
+                    lotteryEditId = lotteryId,
                     onBackClick = {
                         navController.popBackStack()
                     }
