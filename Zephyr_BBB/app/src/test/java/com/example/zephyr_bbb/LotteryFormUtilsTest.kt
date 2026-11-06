@@ -23,6 +23,7 @@ import java.util.TimeZone
  * the rules for a lottery's status, edits and automatic draw. They run on the computer with no emulator.
  * Date reading and display, the name and stay-date checks, and the Active and Completed labels.
  * Inclusive registration end dates, the registration checks, and how the period is displayed.
+ * The booking checks, including that booking must stay open after registration ends.
  *
  * At least one campsite is required, and several are allowed.
  */
@@ -137,6 +138,19 @@ class LotteryFormUtilsTest {
         )
     }
 
+    /** Missing or impossible booking dates are rejected. */
+    @Test
+    fun formRequiresBookingDates() {
+        assertEquals(
+            "Enter the booking start as YYYY-MM-DD.",
+            validFields.copy(bookingStart = "").validate(utc)
+        )
+        assertEquals(
+            "Enter the booking end as YYYY-MM-DD.",
+            validFields.copy(bookingEnd = "2026-02-30").validate(utc)
+        )
+    }
+
     /** Missing stay start or end dates are rejected. */
     @Test
     fun formRequiresStayDates() {
@@ -159,6 +173,19 @@ class LotteryFormUtilsTest {
         )
         assertEquals(
             "Registration must end on or after the day it starts.",
+            fields.validate(utc)
+        )
+    }
+
+    /** A booking period that ends with or before registration is rejected. */
+    @Test
+    fun bookingMustStayOpenAfterRegistration() {
+        val fields = validFields.copy(
+            bookingStart = "2026-10-01",
+            bookingEnd = "2026-10-14"
+        )
+        assertEquals(
+            "Booking must stay open after registration ends.",
             fields.validate(utc)
         )
     }

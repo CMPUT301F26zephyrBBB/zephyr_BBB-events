@@ -16,6 +16,8 @@ import java.util.TimeZone
  * @property stayStart First night winners can stay, YYYY-MM-DD
  * @property stayEnd Last checkout date, YYYY-MM-DD
  * @property campsiteIds The IDs of the campsites the owner has ticked
+ * @property bookingStart First day of booking, YYYY-MM-DD
+ * @property bookingEnd Last day of booking, YYYY-MM-DD
  **/
 data class LotteryFormFields(
     val title: String = "",
@@ -24,6 +26,8 @@ data class LotteryFormFields(
     val registrationEnd: String = "",
     val stayStart: String = "",
     val stayEnd: String = "",
+    val bookingStart: String = "",
+    val bookingEnd: String = "",
 )
 
 /**
@@ -33,6 +37,8 @@ data class LotteryFormFields(
  *  ending after it starts.
  *  Checks that at least one campsite is chosen.
  *  Checks that the registration dates are real dates and registration ends after it starts.
+ *  Checks that the booking dates are real dates, booking ends after it starts, and booking
+ *  stays open after registration ends.
  *  @param timeZone The time zone the dates are read in, normally the phone's
  *  @return An error message to show the owner, or null if the form is ready to publish
  */
@@ -47,6 +53,10 @@ fun LotteryFormFields.validate(timeZone: TimeZone = TimeZone.getDefault()): Stri
         ?: return "Enter the registration start as YYYY-MM-DD."
     val registrationCloses = parseLotteryEndDate(registrationEnd, timeZone)
         ?: return "Enter the registration end as YYYY-MM-DD."
+    val bookingOpens = parseLotteryDate(bookingStart, timeZone)
+        ?: return "Enter the booking start as YYYY-MM-DD."
+    val bookingCloses = parseLotteryEndDate(bookingEnd, timeZone)
+        ?: return "Enter the booking end as YYYY-MM-DD."
     val stayStartDate = parseLotteryDate(stayStart, timeZone)
         ?: return "Enter the stay start as YYYY-MM-DD."
     val stayEndDate = parseLotteryDate(stayEnd, timeZone)
@@ -56,6 +66,16 @@ fun LotteryFormFields.validate(timeZone: TimeZone = TimeZone.getDefault()): Stri
     }
     if (registrationCloses <= registrationOpens) {
         return "Registration must end on or after the day it starts."
+    }
+    if (bookingCloses <= bookingOpens) {
+        return "Booking must end on or after the day it starts."
+    }
+
+    if (bookingCloses <= registrationCloses) {
+        return "Booking must stay open after registration ends."
+    }
+    if (stayEndDate <= stayStartDate) {
+        return "The stay must end after it starts."
     }
     return null
 }

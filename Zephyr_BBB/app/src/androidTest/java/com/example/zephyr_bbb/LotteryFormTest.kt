@@ -157,4 +157,17 @@ class LotteryFormTest {
         composeTestRule.onNodeWithText("Enter a lottery name.").performScrollTo().assertIsDisplayed()
         assertEquals(0, submitCount)
     }
+
+    /** Publishing with a booking period that ends too early shows an error and does not submit. */
+    @Test
+    fun lotteryFormDoesNotSubmitBadDates() {
+        showForm(startFields = validFields.copy(bookingEnd = "2026-10-10"))
+
+        composeTestRule.onNodeWithText("Publish").performScrollTo().performClick()
+
+        composeTestRule.onNodeWithText("Booking must end on or after the day it starts.")
+            .performScrollTo()
+            .assertIsDisplayed()
+        assertEquals(0, submitCount)
+    }
 }

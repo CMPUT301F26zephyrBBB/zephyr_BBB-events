@@ -123,6 +123,14 @@ fun OwnerLotteryDetailsScreen(
 }
 /**
  * It shows the registration period.
+ * It shows the booking period.
+ * @param lottery The lottery to show, or null while it is loading
+ *  @param campsiteNames Campsite names keyed by campsite ID
+ *  @param now The current time, used to work out the lottery's status
+ *  @param isLoading True while the lottery is being loaded
+ *  @param errorMessage An error to show, or null
+ *  @param onBackClick is invoked when the user clicks the back button
+ *  @param onEditLotteryClick is invoked when the user clicks Edit Lottery
  */
 @Composable
 fun LotteryDetailsContent(
@@ -189,6 +197,13 @@ fun LotteryDetailsContent(
             formatClosingRange(
                 lottery.registrationOpensAt?.toDate(),
                 lottery.registrationClosesAt?.toDate()
+            )
+        )
+        Text("Booking period")
+        Text(
+            formatClosingRange(
+                lottery.bookingOpensAt?.toDate(),
+                lottery.bookingClosesAt?.toDate()
             )
         )
         Text("Stay dates")

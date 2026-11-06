@@ -136,6 +136,15 @@ fun LotteryForm(
         )
 
         DateFieldRow(
+            startLabel = "Booking start",
+            startValue = fields.bookingStart,
+            onStartChange = { onFieldsChange(fields.copy(bookingStart = it)) },
+            endLabel = "Booking end",
+            endValue = fields.bookingEnd,
+            onEndChange = { onFieldsChange(fields.copy(bookingEnd = it)) }
+        )
+
+        DateFieldRow(
             startLabel = "Stay start",
             startValue = fields.stayStart,
             onStartChange = { onFieldsChange(fields.copy(stayStart = it)) },
@@ -230,6 +239,8 @@ fun LotteryFormFields.toLottery(id: String = ""): Lottery {
         stayEndDate = stayEnd.trim(),
         campsiteIds = campsiteIds.toList(),
         registrationOpensAt = parseLotteryDate(registrationStart)?.let { Timestamp(it) },
-        registrationClosesAt = parseLotteryEndDate(registrationEnd)?.let { Timestamp(it) }
+        registrationClosesAt = parseLotteryEndDate(registrationEnd)?.let { Timestamp(it) },
+        bookingOpensAt = parseLotteryDate(bookingStart)?.let { Timestamp(it) },
+        bookingClosesAt = parseLotteryEndDate(bookingEnd)?.let { Timestamp(it) }
     )
 }
