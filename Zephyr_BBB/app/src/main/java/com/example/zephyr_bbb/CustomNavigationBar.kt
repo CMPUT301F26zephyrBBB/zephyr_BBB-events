@@ -36,6 +36,12 @@ import com.example.zephyr_bbb.entrant.CampsiteDetailsViewModel
 import com.example.zephyr_bbb.entrant.CampsiteFilterScreen
 import com.example.zephyr_bbb.entrant.CampsiteSearchViewModel
 import com.example.zephyr_bbb.entrant.QrScanScreen
+import com.example.zephyr_bbb.entrant.EntrantReservationsScreen
+import com.example.zephyr_bbb.entrant.NotificationsScreen
+import com.example.zephyr_bbb.entrant.ProfileScreen
+import com.example.zephyr_bbb.entrant.ReservationConfirmationScreen
+import com.example.zephyr_bbb.entrant.ReserveScreen
+import com.example.zephyr_bbb.entrant.WinScreen
 import com.example.zephyr_bbb.owner.OwnerAddCampsiteScreen
 import com.example.zephyr_bbb.owner.OwnerCreateLotteryScreen
 import com.example.zephyr_bbb.owner.OwnerDashboardScreen
@@ -168,7 +174,80 @@ fun CustomNavigationBar(
             }
 
             composable("reservations") {
-                ReservationsScreen()
+                EntrantReservationsScreen(
+                    onProfileClick = {
+                        navController.navigate("profile")
+                    },
+                    onNotificationsClick = {
+                        navController.navigate("notifications")
+                    },
+                    onReservationClick = { reservationId ->
+                        navController.navigate("confirmation/$reservationId")
+                    }
+                )
+            }
+
+            // ---------- Entrant: account and reservations ----------
+
+            composable("profile") {
+                ProfileScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("notifications") {
+                NotificationsScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onWinClick = { lotteryId ->
+                        navController.navigate("win/$lotteryId")
+                    },
+                    onReservationClick = { reservationId ->
+                        navController.navigate("confirmation/$reservationId")
+                    }
+                )
+            }
+
+            composable("win/{lotteryId}") { backStackEntry ->
+                val lotteryId = backStackEntry.arguments?.getString("lotteryId") ?: ""
+                WinScreen(
+                    lotteryId = lotteryId,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onReserveClick = { id ->
+                        navController.navigate("reserve/$id")
+                    }
+                )
+            }
+
+            composable("reserve/{lotteryId}") { backStackEntry ->
+                val lotteryId = backStackEntry.arguments?.getString("lotteryId") ?: ""
+                ReserveScreen(
+                    lotteryId = lotteryId,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onReserved = { reservationId ->
+                        // Remove the win and reserve screens so Back doesn't return to them
+                        navController.navigate("confirmation/$reservationId") {
+                            popUpTo("notifications")
+                        }
+                    }
+                )
+            }
+
+            composable("confirmation/{reservationId}") { backStackEntry ->
+                val reservationId = backStackEntry.arguments?.getString("reservationId") ?: ""
+                ReservationConfirmationScreen(
+                    reservationId = reservationId,
+                    onDoneClick = {
+                        navController.popBackStack()
+                    }
+                )
             }
 
             composable("admin") {
