@@ -31,6 +31,8 @@ import com.example.zephyr_bbb.admin.AdminDashboardScreen
 import com.example.zephyr_bbb.admin.AdminImageScreen
 import com.example.zephyr_bbb.admin.AdminNotificationLogScreen
 import com.example.zephyr_bbb.admin.AdminUserScreen
+import com.example.zephyr_bbb.entrant.CampsiteDetailsScreen
+import com.example.zephyr_bbb.entrant.CampsiteDetailsViewModel
 import com.example.zephyr_bbb.entrant.CampsiteFilterScreen
 import com.example.zephyr_bbb.entrant.CampsiteSearchViewModel
 import com.example.zephyr_bbb.owner.OwnerAddCampsiteScreen
@@ -130,10 +132,17 @@ fun CustomNavigationBar(
                 )
             }
 
-            // Placeholder until the campsite details branch (US 01.01.05) is merged
             composable("campsite_details/{campsiteId}") { backStackEntry ->
                 val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
-                Text("Campsite details for $campsiteId")
+                // Created inside the destination so each visit starts with fresh state
+                val detailsViewModel: CampsiteDetailsViewModel = viewModel()
+                CampsiteDetailsScreen(
+                    campsiteId = campsiteId,
+                    viewModel = detailsViewModel,
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
             }
 
             composable("lotteries") {
