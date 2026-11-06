@@ -7,23 +7,38 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+/**
+ * Holds the text an owner has typed into the Create / Edit Lottery form.
+ * Everything is kept as text so the form can show exactly what was typed,
+ * then validate() checks it before it is turned into a Lottery.
+ * The stay end date is the checkout date, so it is excluded, matching the Lottery model.
+ * @property title The lottery name
+ * @property stayStart First night winners can stay, YYYY-MM-DD
+ * @property stayEnd Last checkout date, YYYY-MM-DD
+ * @property campsiteIds The IDs of the campsites the owner has ticked
+ **/
 data class LotteryFormFields(
     val title: String = "",
+    val campsiteIds: Set<String> = emptySet(),
     val stayStart: String = "",
     val stayEnd: String = "",
 )
 
 /**
  * Checks the form for missing or badly formatted values, so the owner gets a message before
- *  * anything is sent to the database.
- *  * Checks that there is a lottery name, and that the stay dates are real dates with the stay
- *  * ending after it starts.
+ *  anything is sent to the database.
+ *  Checks that there is a lottery name, and that the stay dates are real dates with the stay
+ *  ending after it starts.
+ *  Checks that at least one campsite is chosen.
  *  @param timeZone The time zone the dates are read in, normally the phone's
  *  @return An error message to show the owner, or null if the form is ready to publish
  */
 fun LotteryFormFields.validate(timeZone: TimeZone = TimeZone.getDefault()): String? {
     if (title.isBlank()) {
         return "Enter a lottery name."
+    }
+    if (campsiteIds.isEmpty()) {
+        return "Choose at least one campsite."
     }
     val stayStartDate = parseLotteryDate(stayStart, timeZone)
         ?: return "Enter the stay start as YYYY-MM-DD."

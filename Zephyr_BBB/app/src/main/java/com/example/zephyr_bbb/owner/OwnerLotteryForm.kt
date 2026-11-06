@@ -32,10 +32,11 @@ import com.google.firebase.Timestamp
 
 /**
  * A composable function that shows the Create Lottery form.
- *  * It does not load or save anything itself; the screen that uses it passes in the current
- *  * values and is told when they change.
- *  * The owner enters the lottery name and the stay period.
- *  * The form is checked with LotteryFormFields.validate() before onSubmit is called.
+ *  It does not load or save anything itself; the screen that uses it passes in the current
+ *  Values and is told when they change.
+ *  The owner enters the lottery name and the stay period.
+ *  The form is checked with LotteryFormFields.validate() before onSubmit is called.
+ *  The owner can pick one or more campsites.
  *
  *  @param heading The text shown beside the back button
  *  @param fields The values currently in the form
@@ -45,6 +46,7 @@ import com.google.firebase.Timestamp
  *  @param onFieldsChange is invoked with the new values whenever the owner changes the form
  *  @param onSubmit is invoked when the owner presses the submit button and the form is valid
  *  @param onBackClick is invoked when the user clicks the back button
+ *  @param campsites The owner's campsites that can be included in the lottery
  */
 @Composable
 fun LotteryForm(
@@ -89,6 +91,39 @@ fun LotteryForm(
             label = { Text("Lottery name") },
             modifier = Modifier.fillMaxWidth()
         )
+        Text("Campsites · select one or more")
+
+        if (campsites.isEmpty()) {
+            Text("Add a campsite before creating a lottery.")
+        }
+
+        campsites.forEach { campsite ->
+            val checked = campsite.id in fields.campsiteIds
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = checked,
+                        role = Role.Checkbox,
+                        onValueChange = { isChecked ->
+                            val newIds = if (isChecked) {
+                                fields.campsiteIds + campsite.id
+                            } else {
+                                fields.campsiteIds - campsite.id
+                            }
+                            onFieldsChange(fields.copy(campsiteIds = newIds))
+                        }
+                    )
+            ) {
+                Checkbox(
+                    checked = checked,
+                    onCheckedChange = null
+                )
+                Text(campsiteLabel(campsite))
+            }
+        }
 
         DateFieldRow(
             startLabel = "Stay start",
@@ -160,11 +195,29 @@ private fun DateFieldRow(
     }
 }
 
+/**
+ * The text shown for a campsite in lottery lists, e.g. "Pine Creek A12 · Jasper".
+ */
+fun campsiteLabel(campsite: Campsite): String {
+    return if (campsite.locationName.isBlank()) {
+        campsite.name
+    } else {
+        "${campsite.name} · ${campsite.locationName}"
+    }
+}
+
+/**
+* Builds the Lottery that is sent to LotteryRepository from the form values.
+* Only call this after validate() returns null.
+*
+* @param id The existing lottery ID when editing, blank when creating
+*/
 fun LotteryFormFields.toLottery(id: String = ""): Lottery {
     return Lottery(
         id = id,
         title = title.trim(),
         stayStartDate = stayStart.trim(),
-        stayEndDate = stayEnd.trim()
+        stayEndDate = stayEnd.trim(),
+        campsiteIds = campsiteIds.toList()
     )
 }

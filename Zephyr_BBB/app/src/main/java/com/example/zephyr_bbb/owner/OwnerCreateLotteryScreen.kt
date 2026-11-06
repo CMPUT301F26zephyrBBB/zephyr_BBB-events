@@ -15,6 +15,7 @@ import com.example.zephyr_bbb.database.repository.UserRepository
  * A composable function that creates the screen owners see when they click Create Lottery,
  * either from My Lotteries or from a campsite's details.
  * Publishes the lottery with LotteryRepository.createLottery.
+ * Loads the owner's campsites so they can pick one or more of them.
  *
  * @param preselectedCampsiteId A campsite to tick before the form opens, or null for none
  * @param onBackClick is invoked when the user clicks the back button, or once the lottery is published
@@ -36,9 +37,12 @@ fun OwnerCreateLotteryScreen(
     var fields by remember {
         mutableStateOf(
             LotteryFormFields(
-//                campsiteIds = setOfNotNull(preselectedCampsiteId?.ifBlank { null })
+                campsiteIds = setOfNotNull(preselectedCampsiteId?.ifBlank { null })
             )
         )
+    }
+    var campsites by remember {
+        mutableStateOf<List<Campsite>>(emptyList())
     }
 
     var errorMessage by remember {
@@ -48,10 +52,32 @@ fun OwnerCreateLotteryScreen(
         mutableStateOf(false)
     }
 
+    LaunchedEffect(Unit) {
+        try {
+            userRepository.getOrCreateCurrentUser(
+                onSuccess = {
+                    campsiteRepository.getMyCampsites(
+                        onSuccess = { list ->
+                            campsites = list
+                        },
+                        onFailure = { error ->
+                            errorMessage = error.message
+                        }
+                    )
+                },
+                onFailure = { error ->
+                    errorMessage = error.message
+                }
+            )
+        } catch (e: Exception) {
+            errorMessage = e.message
+        }
+    }
+
     LotteryForm(
         heading = "Create Lottery",
         fields = fields,
-//        campsites = campsites,
+        campsites = campsites,
         submitLabel = "Publish",
         errorMessage = errorMessage,
         isSubmitting = isSubmitting,

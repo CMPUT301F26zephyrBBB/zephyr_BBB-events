@@ -16,20 +16,29 @@ import org.junit.Test
 import java.util.Date
 import java.util.TimeZone
 
+/**
+ * Tests for LotteryFormUtils.kt: how the lottery form is checked, how dates are read and shown, and
+ * the rules for a lottery's status, edits and automatic draw. They run on the computer with no emulator.
+ * Date reading and display, the name and stay-date checks, and the Active and Completed labels.
+ *
+ * At least one campsite is required, and several are allowed.
+ */
 class LotteryFormUtilsTest {
 
     private val utc = TimeZone.getTimeZone("UTC")
 
+    /** Reads a YYYY-MM-DD day in UTC so the tests give the same result on any phone. */
     private fun date(text: String): Date {
         return parseLotteryDate(text, utc)!!
     }
 
+    // A form that passes validation, based on the "October Foothills" storyboard example
     private val validFields = LotteryFormFields(
         title = "October Foothills",
         stayStart = "2026-10-18",
         stayEnd = "2026-11-01",
     )
-
+    /** A valid YYYY-MM-DD date is read and formats back to the same text. */
     @Test
     fun parseLotteryDateReadsValidDate() {
         val parsed = parseLotteryDate("2026-10-01", utc)
@@ -37,6 +46,7 @@ class LotteryFormUtilsTest {
         assertEquals("2026-10-01", formatLotteryDate(parsed, utc))
     }
 
+    /** Empty, malformed and impossible dates such as 2026-02-30 are rejected. */
     @Test
     fun parseLotteryDateRejectsBadInput() {
         assertNull(parseLotteryDate("", utc))
@@ -47,6 +57,7 @@ class LotteryFormUtilsTest {
         assertNull(parseLotteryDate("2026-13-01", utc))
     }
 
+    /** A range inside one month shows the month once. */
     @Test
     fun formatDateRangeInSameMonth() {
         assertEquals(
@@ -55,16 +66,26 @@ class LotteryFormUtilsTest {
         )
     }
 
+    /** A stay shows its check-in and checkout dates. */
     @Test
     fun formatStayRangeShowsCheckoutDate() {
         assertEquals("Oct 18–21, 2026", formatStayRange("2026-10-18", "2026-10-21", utc))
     }
 
+    /** A completely filled-in form has no validation error. */
     @Test
     fun validFormHasNoError() {
         assertNull(validFields.validate(utc))
     }
 
+    /** A form with several campsites is valid. */
+    @Test
+    fun formAllowsMultipleCampsites() {
+        val fields = validFields.copy(campsiteIds = setOf("a", "b", "c"))
+        assertNull(fields.validate(utc))
+    }
+
+    /** A blank lottery name is rejected. */
     @Test
     fun formRequiresName() {
         assertEquals(
@@ -73,6 +94,16 @@ class LotteryFormUtilsTest {
         )
     }
 
+    /** A form with no campsite is rejected. */
+    @Test
+    fun formRequiresCampsite() {
+        assertEquals(
+            "Choose at least one campsite.",
+            validFields.copy(campsiteIds = emptySet()).validate(utc)
+        )
+    }
+
+    /** Missing stay start or end dates are rejected. */
     @Test
     fun formRequiresStayDates() {
         assertEquals(
@@ -85,6 +116,7 @@ class LotteryFormUtilsTest {
         )
     }
 
+    /** A stay that ends on or before its start date is rejected. */
     @Test
     fun stayMustEndAfterItStarts() {
         val fields = validFields.copy(

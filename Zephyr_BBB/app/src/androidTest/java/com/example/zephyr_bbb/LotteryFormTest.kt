@@ -79,6 +79,7 @@ class LotteryFormTest {
             )
         }
     }
+    /** The form shows the name, campsite, period, winner and capacity fields and the Publish button. */
     @Test
     fun lotteryFormShowsAllFields() {
         showForm()
@@ -101,6 +102,22 @@ class LotteryFormTest {
         composeTestRule.onNodeWithText("Leave blank for an unlimited waitlist.").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText("Publish").performScrollTo().assertIsDisplayed()
     }
+
+    /** Ticking two campsites selects both and leaves the third unticked. */
+    @Test
+    fun lotteryFormSelectsMultipleCampsites() {
+        showForm()
+
+        composeTestRule.onNodeWithText("Pine Creek A12 · Jasper").performClick()
+        composeTestRule.onNodeWithText("Willow Bend B04 · Cochrane").performClick()
+
+        composeTestRule.onNodeWithText("Pine Creek A12 · Jasper").assertIsOn()
+        composeTestRule.onNodeWithText("Willow Bend B04 · Cochrane").assertIsOn()
+        composeTestRule.onNodeWithText("Elk Ridge C07 · Canmore").assertIsOff()
+        assertEquals(setOf("c1", "c2"), latestFields.campsiteIds)
+    }
+
+    /** Publishing without a name shows an error and does not submit. */
     @Test
     fun lotteryFormDoesNotSubmitWithoutName() {
         showForm(startFields = validFields.copy(title = ""))
