@@ -36,6 +36,7 @@ import com.google.firebase.Timestamp
  *  Values and is told when they change.
  *  The owner enters the lottery name and the stay period.
  *  The form is checked with LotteryFormFields.validate() before onSubmit is called.
+ *  The owner can set the registration period.
  *  The owner can pick one or more campsites.
  *
  *  @param heading The text shown beside the back button
@@ -124,6 +125,15 @@ fun LotteryForm(
                 Text(campsiteLabel(campsite))
             }
         }
+
+        DateFieldRow(
+            startLabel = "Registration start",
+            startValue = fields.registrationStart,
+            onStartChange = { onFieldsChange(fields.copy(registrationStart = it)) },
+            endLabel = "Registration end",
+            endValue = fields.registrationEnd,
+            onEndChange = { onFieldsChange(fields.copy(registrationEnd = it)) }
+        )
 
         DateFieldRow(
             startLabel = "Stay start",
@@ -218,6 +228,8 @@ fun LotteryFormFields.toLottery(id: String = ""): Lottery {
         title = title.trim(),
         stayStartDate = stayStart.trim(),
         stayEndDate = stayEnd.trim(),
-        campsiteIds = campsiteIds.toList()
+        campsiteIds = campsiteIds.toList(),
+        registrationOpensAt = parseLotteryDate(registrationStart)?.let { Timestamp(it) },
+        registrationClosesAt = parseLotteryEndDate(registrationEnd)?.let { Timestamp(it) }
     )
 }

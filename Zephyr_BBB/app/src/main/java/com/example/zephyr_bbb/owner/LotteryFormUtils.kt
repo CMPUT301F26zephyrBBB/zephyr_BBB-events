@@ -20,6 +20,8 @@ import java.util.TimeZone
 data class LotteryFormFields(
     val title: String = "",
     val campsiteIds: Set<String> = emptySet(),
+    val registrationStart: String = "",
+    val registrationEnd: String = "",
     val stayStart: String = "",
     val stayEnd: String = "",
 )
@@ -30,6 +32,7 @@ data class LotteryFormFields(
  *  Checks that there is a lottery name, and that the stay dates are real dates with the stay
  *  ending after it starts.
  *  Checks that at least one campsite is chosen.
+ *  Checks that the registration dates are real dates and registration ends after it starts.
  *  @param timeZone The time zone the dates are read in, normally the phone's
  *  @return An error message to show the owner, or null if the form is ready to publish
  */
@@ -40,12 +43,19 @@ fun LotteryFormFields.validate(timeZone: TimeZone = TimeZone.getDefault()): Stri
     if (campsiteIds.isEmpty()) {
         return "Choose at least one campsite."
     }
+    val registrationOpens = parseLotteryDate(registrationStart, timeZone)
+        ?: return "Enter the registration start as YYYY-MM-DD."
+    val registrationCloses = parseLotteryEndDate(registrationEnd, timeZone)
+        ?: return "Enter the registration end as YYYY-MM-DD."
     val stayStartDate = parseLotteryDate(stayStart, timeZone)
         ?: return "Enter the stay start as YYYY-MM-DD."
     val stayEndDate = parseLotteryDate(stayEnd, timeZone)
         ?: return "Enter the stay end as YYYY-MM-DD."
     if (stayEndDate <= stayStartDate) {
         return "The stay must end after it starts."
+    }
+    if (registrationCloses <= registrationOpens) {
+        return "Registration must end on or after the day it starts."
     }
     return null
 }
@@ -74,6 +84,25 @@ fun parseLotteryDate(
         null
     }
 }
+
+/**
+ * Turns an inclusive end date (YYYY-MM-DD) into the moment it closes,
+ * which is the start of the following day.
+ * Example: a registration end of 2026-10-14 closes at midnight starting 2026-10-15.
+ */
+fun parseLotteryEndDate(
+    text: String,
+    timeZone: TimeZone = TimeZone.getDefault()
+): Date? {
+    val date = parseLotteryDate(text, timeZone) ?: return null
+
+    val calendar = Calendar.getInstance(timeZone)
+    calendar.time = date
+    calendar.add(Calendar.DAY_OF_MONTH, 1)
+
+    return calendar.time
+}
+
 /**
  * Formats a date as YYYY-MM-DD so it can be put back into a form field.
  */
@@ -128,6 +157,19 @@ fun formatDateRange(
 }
 
 /**
+ * Formats a period whose end is a closing moment (registration or booking),
+ * showing the last open day rather than the day after.
+ */
+fun formatClosingRange(
+    opensAt: Date?,
+    closesAt: Date?,
+    timeZone: TimeZone = TimeZone.getDefault()
+): String {
+    val lastDay = closesAt?.let { Date(it.time - 1) }
+    return formatDateRange(opensAt, lastDay, timeZone)
+}
+
+/**
  * Formats a stay period stored as YYYY-MM-DD strings, e.g. "Oct 18–21, 2026".
  * The end is the checkout date.
  */
@@ -146,6 +188,7 @@ fun formatStayRange(
 /**
  * Turns the stored lottery status and its registration window into the label owners see.
  * "open" is split into Upcoming / Active / Drawing winners depending on the date.
+ * The registration and booking end dates are inclusive (the last day people can register or book).
  *
  * @param status The status saved in the database ("open", "drawn", "cancelled")
  * @param registrationOpensAt When registration starts

@@ -30,6 +30,7 @@ import org.junit.runner.RunWith
 // Tests the Create / Edit Lottery form: all fields show, more than one campsite can be picked,
 // registration/booking periods, winner count and optional waitlist capacity can be entered,
 // invalid forms are not submitted, and the form converts to and from a Lottery.
+// The registration fields accept typed dates.
 
 @RunWith(AndroidJUnit4::class)
 class LotteryFormTest {
@@ -43,6 +44,9 @@ class LotteryFormTest {
     )
     private val validFields = LotteryFormFields(
         title = "October Foothills",
+        campsiteIds = setOf("c1", "c2"),
+        registrationStart = "2026-10-01",
+        registrationEnd = "2026-10-14",
         stayStart = "2026-10-18",
         stayEnd = "2026-11-01"
     )
@@ -115,6 +119,32 @@ class LotteryFormTest {
         composeTestRule.onNodeWithText("Willow Bend B04 · Cochrane").assertIsOn()
         composeTestRule.onNodeWithText("Elk Ridge C07 · Canmore").assertIsOff()
         assertEquals(setOf("c1", "c2"), latestFields.campsiteIds)
+    }
+
+    /** Text can be typed into the period, winner and capacity fields. */
+    @Test
+    fun lotteryFormEntersPeriodsWinnersAndCapacity() {
+        showForm()
+
+        composeTestRule.onNodeWithText("Lottery name").performTextInput("October Foothills")
+        composeTestRule.onNodeWithText("Registration start").performScrollTo().performTextInput("2026-10-01")
+        composeTestRule.onNodeWithText("Registration end").performScrollTo().performTextInput("2026-10-14")
+        composeTestRule.onNodeWithText("Booking start").performScrollTo().performTextInput("2026-10-18")
+        composeTestRule.onNodeWithText("Booking end").performScrollTo().performTextInput("2026-10-31")
+        composeTestRule.onNodeWithText("Stay start").performScrollTo().performTextInput("2026-10-18")
+        composeTestRule.onNodeWithText("Stay end (checkout)").performScrollTo().performTextInput("2026-11-01")
+        composeTestRule.onNodeWithText("Winner count").performScrollTo().performTextReplacement("8")
+        composeTestRule.onNodeWithText("Waitlist capacity (optional)").performScrollTo().performTextInput("20")
+
+        assertEquals("October Foothills", latestFields.title)
+        assertEquals("2026-10-01", latestFields.registrationStart)
+        assertEquals("2026-10-14", latestFields.registrationEnd)
+        assertEquals("2026-10-18", latestFields.bookingStart)
+        assertEquals("2026-10-31", latestFields.bookingEnd)
+        assertEquals("2026-10-18", latestFields.stayStart)
+        assertEquals("2026-11-01", latestFields.stayEnd)
+        assertEquals("8", latestFields.winnerCount)
+        assertEquals("20", latestFields.waitlistCapacity)
     }
 
     /** Publishing without a name shows an error and does not submit. */

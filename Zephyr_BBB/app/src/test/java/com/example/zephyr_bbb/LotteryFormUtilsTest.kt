@@ -1,11 +1,13 @@
 package com.example.zephyr_bbb
 
 import com.example.zephyr_bbb.owner.LotteryFormFields
+import com.example.zephyr_bbb.owner.formatClosingRange
 import com.example.zephyr_bbb.owner.formatDateRange
 import com.example.zephyr_bbb.owner.formatLotteryDate
 import com.example.zephyr_bbb.owner.formatStayRange
 import com.example.zephyr_bbb.owner.lotteryStatusLabel
 import com.example.zephyr_bbb.owner.parseLotteryDate
+import com.example.zephyr_bbb.owner.parseLotteryEndDate
 import com.example.zephyr_bbb.owner.validate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -20,6 +22,7 @@ import java.util.TimeZone
  * Tests for LotteryFormUtils.kt: how the lottery form is checked, how dates are read and shown, and
  * the rules for a lottery's status, edits and automatic draw. They run on the computer with no emulator.
  * Date reading and display, the name and stay-date checks, and the Active and Completed labels.
+ * Inclusive registration end dates, the registration checks, and how the period is displayed.
  *
  * At least one campsite is required, and several are allowed.
  */
@@ -57,12 +60,30 @@ class LotteryFormUtilsTest {
         assertNull(parseLotteryDate("2026-13-01", utc))
     }
 
+    /** An inclusive end date closes at the start of the following day. */
+    @Test
+    fun parseLotteryEndDateClosesAtStartOfNextDay() {
+        assertEquals(date("2026-10-15"), parseLotteryEndDate("2026-10-14", utc))
+    }
     /** A range inside one month shows the month once. */
     @Test
     fun formatDateRangeInSameMonth() {
         assertEquals(
             "Oct 1–14, 2026",
             formatDateRange(date("2026-10-01"), date("2026-10-14"), utc)
+        )
+    }
+
+    /** A registration or booking range shows the last open day, not the day after. */
+    @Test
+    fun formatClosingRangeShowsLastOpenDay() {
+        assertEquals(
+            "Oct 1–14, 2026",
+            formatClosingRange(
+                date("2026-10-01"),
+                parseLotteryEndDate("2026-10-14", utc),
+                utc
+            )
         )
     }
 
@@ -103,6 +124,19 @@ class LotteryFormUtilsTest {
         )
     }
 
+    /** Missing or malformed registration dates are rejected. */
+    @Test
+    fun formRequiresRegistrationDates() {
+        assertEquals(
+            "Enter the registration start as YYYY-MM-DD.",
+            validFields.copy(registrationStart = "").validate(utc)
+        )
+        assertEquals(
+            "Enter the registration end as YYYY-MM-DD.",
+            validFields.copy(registrationEnd = "Oct 14").validate(utc)
+        )
+    }
+
     /** Missing stay start or end dates are rejected. */
     @Test
     fun formRequiresStayDates() {
@@ -113,6 +147,19 @@ class LotteryFormUtilsTest {
         assertEquals(
             "Enter the stay end as YYYY-MM-DD.",
             validFields.copy(stayEnd = "").validate(utc)
+        )
+    }
+
+    /** Registration that ends before it starts is rejected. */
+    @Test
+    fun registrationCannotEndBeforeItStarts() {
+        val fields = validFields.copy(
+            registrationStart = "2026-10-14",
+            registrationEnd = "2026-10-01"
+        )
+        assertEquals(
+            "Registration must end on or after the day it starts.",
+            fields.validate(utc)
         )
     }
 
