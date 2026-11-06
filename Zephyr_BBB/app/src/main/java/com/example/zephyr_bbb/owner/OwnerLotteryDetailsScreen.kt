@@ -141,6 +141,7 @@ fun OwnerLotteryDetailsScreen(
  * The Edit Lottery button only shows while the lottery can still be changed.
  * It shows the registration period.
  * It shows the booking period.
+ * It shows the waitlist size and its capacity, or "unlimited".
  *
  *  @param lottery The lottery to show, or null while it is loading
  *  @param campsiteNames Campsite names keyed by campsite ID
@@ -228,6 +229,9 @@ fun LotteryDetailsContent(
         Text(formatStayRange(lottery.stayStartDate, lottery.stayEndDate))
 
         Text("Winner count: ${lottery.winnerCount}")
+
+        Text("Waitlist size: ${lottery.entryCount}")
+        Text("Waitlist capacity: ${lottery.waitlistCapacity?.toString() ?: "unlimited"}")
 
         if (canEditLottery(lottery.status)) {
             Button(

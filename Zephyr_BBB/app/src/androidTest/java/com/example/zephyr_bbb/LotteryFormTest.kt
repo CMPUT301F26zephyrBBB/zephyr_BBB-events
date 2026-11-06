@@ -23,6 +23,7 @@ import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertNull
 import junit.framework.TestCase.assertTrue
+
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,6 +35,7 @@ import org.junit.runner.RunWith
 * Several campsites can be ticked.
 * The registration fields accept typed dates.
 * A booking period that ends too early is not submitted.
+* A blank waitlist capacity submits as unlimited.
 * A lottery converts back into form fields for editing, and errors from the screen are shown.
 */
 
@@ -174,6 +176,16 @@ class LotteryFormTest {
             .performScrollTo()
             .assertIsDisplayed()
         assertEquals(0, submitCount)
+    }
+
+    /** A valid form with a blank capacity submits. */
+    @Test
+    fun lotteryFormSubmitsValidFormWithUnlimitedWaitlist() {
+        showForm(startFields = validFields)
+
+        composeTestRule.onNodeWithText("Publish").performScrollTo().performClick()
+
+        assertEquals(1, submitCount)
     }
 
     /** An error passed in by the screen, such as a capacity below the waitlist size, is shown. */

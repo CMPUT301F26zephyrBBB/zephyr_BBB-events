@@ -167,6 +167,19 @@ fun LotteryForm(
             modifier = Modifier.fillMaxWidth()
         )
 
+        OutlinedTextField(
+            value = fields.waitlistCapacity,
+            onValueChange = { input ->
+                if (input.all { it.isDigit() }) {
+                    onFieldsChange(fields.copy(waitlistCapacity = input))
+                }
+            },
+            label = { Text("Waitlist capacity (optional)") },
+            supportingText = { Text("Leave blank for an unlimited waitlist.") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth()
+        )
+
         val shownError = validationError ?: errorMessage
 
         if (!shownError.isNullOrBlank()) {
@@ -256,7 +269,8 @@ fun LotteryFormFields.toLottery(id: String = ""): Lottery {
         registrationClosesAt = parseLotteryEndDate(registrationEnd)?.let { Timestamp(it) },
         bookingOpensAt = parseLotteryDate(bookingStart)?.let { Timestamp(it) },
         bookingClosesAt = parseLotteryEndDate(bookingEnd)?.let { Timestamp(it) },
-        winnerCount = winnerCount.toLongOrNull() ?: 1L
+        winnerCount = winnerCount.toLongOrNull() ?: 1L,
+        waitlistCapacity = waitlistCapacityOrNull()
     )
 }
 

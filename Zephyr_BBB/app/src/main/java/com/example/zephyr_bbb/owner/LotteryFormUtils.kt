@@ -19,6 +19,7 @@ import java.util.TimeZone
  * @property bookingStart First day of booking, YYYY-MM-DD
  * @property bookingEnd Last day of booking, YYYY-MM-DD
  * @property winnerCount Number of winners to draw
+ * @property waitlistCapacity Maximum waitlist size, blank for unlimited
  **/
 data class LotteryFormFields(
     val title: String = "",
@@ -29,7 +30,8 @@ data class LotteryFormFields(
     val bookingEnd: String = "",
     val stayStart: String = "",
     val stayEnd: String = "",
-    val winnerCount: String = "1"
+    val winnerCount: String = "1",
+    val waitlistCapacity: String = ""
 )
 
 /**
@@ -42,6 +44,7 @@ data class LotteryFormFields(
  *  Checks that the booking dates are real dates, booking ends after it starts, and booking
  *  stays open after registration ends.
  *  Checks that there is at least one winner.
+ *  Checks that the waitlist capacity is blank (unlimited) or a positive number.
  *  @param timeZone The time zone the dates are read in, normally the phone's
  *  @return An error message to show the owner, or null if the form is ready to publish
  */
@@ -85,7 +88,22 @@ fun LotteryFormFields.validate(timeZone: TimeZone = TimeZone.getDefault()): Stri
     if (winners == null || winners < 1) {
         return "Choose at least one winner."
     }
+
+    if (waitlistCapacity.isNotBlank()) {
+        val capacity = waitlistCapacity.toLongOrNull()
+
+        if (capacity == null || capacity < 1) {
+            return "Waitlist capacity must be a positive number or left blank."
+        }
+    }
     return null
+}
+
+/**
+ * Returns the waitlist capacity the owner entered, or null for an unlimited waitlist.
+ */
+fun LotteryFormFields.waitlistCapacityOrNull(): Long? {
+    return waitlistCapacity.trim().toLongOrNull()
 }
 
 /**

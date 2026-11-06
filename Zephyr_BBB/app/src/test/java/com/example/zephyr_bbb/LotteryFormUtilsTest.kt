@@ -11,6 +11,7 @@ import com.example.zephyr_bbb.owner.lotteryStatusLabel
 import com.example.zephyr_bbb.owner.parseLotteryDate
 import com.example.zephyr_bbb.owner.parseLotteryEndDate
 import com.example.zephyr_bbb.owner.validate
+import com.example.zephyr_bbb.owner.waitlistCapacityOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -27,6 +28,7 @@ import java.util.TimeZone
  * Inclusive registration end dates, the registration checks, and how the period is displayed.
  * The booking checks, including that booking must stay open after registration ends.
  * At least one winner is required.
+ * A blank waitlist capacity means unlimited, and a set capacity must be positive.
  *
  * At least one campsite is required, and several are allowed.
  */
@@ -222,6 +224,22 @@ class LotteryFormUtilsTest {
             validFields.copy(winnerCount = "").validate(utc)
         )
     }
+    /** A blank capacity is valid and means an unlimited waitlist. */
+    @Test
+    fun blankWaitlistCapacityIsUnlimited() {
+        val fields = validFields.copy(waitlistCapacity = "")
+        assertNull(fields.validate(utc))
+        assertNull(fields.waitlistCapacityOrNull())
+    }
+
+    @Test
+    fun waitlistCapacityMustBePositive() {
+        assertEquals(
+            "Waitlist capacity must be a positive number or left blank.",
+            validFields.copy(waitlistCapacity = "0").validate(utc)
+        )
+    }
+
     /** Only open lotteries can be edited; drawn and cancelled ones cannot. */
     @Test
     fun onlyOpenLotteriesCanBeEdited() {
@@ -229,4 +247,5 @@ class LotteryFormUtilsTest {
         assertFalse(canEditLottery("drawn"))
         assertFalse(canEditLottery("cancelled"))
     }
+
 }

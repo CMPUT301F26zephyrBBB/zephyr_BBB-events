@@ -20,6 +20,7 @@ import org.junit.runner.RunWith
 /**
  * Tests for OwnerLotteryDetailsScreen.kt. They run on the emulator with a fake lottery, so they do not
  * use Firebase.
+ * The waitlist capacity is shown, or "unlimited" when there is none.
  * The details show the periods and settings, and Edit Lottery only appears while the lottery is open.
  */
 @RunWith(AndroidJUnit4::class)
@@ -101,6 +102,20 @@ class OwnerLotteryDetailsScreenTest {
         composeTestRule.onNodeWithText("Oct 18 – Nov 1, 2026").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText("Winner count: 8").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText("Waitlist size: 20").performScrollTo().assertIsDisplayed()
+    }
+
+    /** A lottery with no capacity shows "unlimited". */
+    @Test
+    fun lotteryDetailsShowsUnlimitedCapacity() {
+        showDetails(openLottery)
+        composeTestRule.onNodeWithText("Waitlist capacity: unlimited").performScrollTo().assertIsDisplayed()
+    }
+
+    /** A lottery with a capacity shows the number. */
+    @Test
+    fun lotteryDetailsShowsCapacity() {
+        showDetails(openLottery.copy(waitlistCapacity = 30))
+        composeTestRule.onNodeWithText("Waitlist capacity: 30").performScrollTo().assertIsDisplayed()
     }
 
     /** Edit Lottery reports a click while the lottery is open. */
