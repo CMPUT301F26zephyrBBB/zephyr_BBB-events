@@ -31,6 +31,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Composable function that creates the screen seen by the owner when they click View Lottery.
+ * Loads the lottery and the names of its campsites.
+ *
+ * @param lotteryId The unique id of the lottery to show
+ * @param onBackClick is invoked when the user clicks the back button
+ * @param onEditLotteryClick is invoked with the lottery id when the user clicks Edit Lottery
+*/
 @Composable
 fun OwnerLotteryDetailsScreen(
     lotteryId: String,
@@ -91,22 +99,30 @@ fun OwnerLotteryDetailsScreen(
                             errorMessage = error.message
                         }
                     )
-                    lottery = loaded
-                    now = Date()
-                    isLoading = false
+                    lotteryRepository.getLottery(
+                        lotteryId = lotteryId,
+                        onSuccess = { loaded ->
+                            lottery = loaded
+                            now = Date()
+                            isLoading = false
 
-                    if (loaded == null) {
-                        errorMessage = "This lottery could not be found."
-                    }
+                            if (loaded == null) {
+                                errorMessage = "This lottery could not be found."
+                            }
                 },
                 onFailure = { error ->
                     errorMessage = error.message
                     isLoading = false
                 }
+                )
+            },
+            onFailure = { error ->
+                errorMessage = error.message
+                isLoading = false
+            }
             )
-        },
-        onFailure = { error ->
-            errorMessage = error.message
+        } catch (e: Exception) {
+            errorMessage = e.message
             isLoading = false
         }
     }
@@ -118,13 +134,15 @@ fun OwnerLotteryDetailsScreen(
         errorMessage = errorMessage,
         onBackClick = onBackClick,
         onEditLotteryClick = { onEditLotteryClick(lotteryId) },
-        onSendNotificationClick = { onSendNotificationClick(lotteryId) } // [C15 · US 02.10.01] (add with C15)
     )
 }
 /**
+ * Composable function that shows a lottery's details: its campsites, stay dates and status.
+ * The Edit Lottery button only shows while the lottery can still be changed.
  * It shows the registration period.
  * It shows the booking period.
- * @param lottery The lottery to show, or null while it is loading
+ *
+ *  @param lottery The lottery to show, or null while it is loading
  *  @param campsiteNames Campsite names keyed by campsite ID
  *  @param now The current time, used to work out the lottery's status
  *  @param isLoading True while the lottery is being loaded

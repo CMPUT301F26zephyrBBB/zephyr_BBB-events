@@ -1,9 +1,11 @@
 package com.example.zephyr_bbb
 
 import com.example.zephyr_bbb.owner.LotteryFormFields
+import com.example.zephyr_bbb.owner.canEditLottery
 import com.example.zephyr_bbb.owner.formatClosingRange
 import com.example.zephyr_bbb.owner.formatDateRange
 import com.example.zephyr_bbb.owner.formatLotteryDate
+import com.example.zephyr_bbb.owner.formatLotteryEndDate
 import com.example.zephyr_bbb.owner.formatStayRange
 import com.example.zephyr_bbb.owner.lotteryStatusLabel
 import com.example.zephyr_bbb.owner.parseLotteryDate
@@ -67,6 +69,14 @@ class LotteryFormUtilsTest {
     fun parseLotteryEndDateClosesAtStartOfNextDay() {
         assertEquals(date("2026-10-15"), parseLotteryEndDate("2026-10-14", utc))
     }
+
+    /** An end date turned into a closing time converts back to the text the owner typed. */
+    @Test
+    fun formatLotteryEndDateUndoesParseLotteryEndDate() {
+        val closesAt = parseLotteryEndDate("2026-10-14", utc)
+        assertEquals("2026-10-14", formatLotteryEndDate(closesAt, utc))
+    }
+
     /** A range inside one month shows the month once. */
     @Test
     fun formatDateRangeInSameMonth() {
@@ -211,5 +221,12 @@ class LotteryFormUtilsTest {
             "Choose at least one winner.",
             validFields.copy(winnerCount = "").validate(utc)
         )
+    }
+    /** Only open lotteries can be edited; drawn and cancelled ones cannot. */
+    @Test
+    fun onlyOpenLotteriesCanBeEdited() {
+        assertTrue(canEditLottery("open"))
+        assertFalse(canEditLottery("drawn"))
+        assertFalse(canEditLottery("cancelled"))
     }
 }

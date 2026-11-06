@@ -39,6 +39,7 @@ import com.google.firebase.Timestamp
  *  The owner can set the registration period.
  *  The owner can pick one or more campsites.
  *  The owner can set the number of winners.
+ *  It is also used by OwnerEditLotteryScreen, which fills it with an existing lottery.
  *
  *  @param heading The text shown beside the back button
  *  @param fields The values currently in the form
@@ -256,5 +257,23 @@ fun LotteryFormFields.toLottery(id: String = ""): Lottery {
         bookingOpensAt = parseLotteryDate(bookingStart)?.let { Timestamp(it) },
         bookingClosesAt = parseLotteryEndDate(bookingEnd)?.let { Timestamp(it) },
         winnerCount = winnerCount.toLongOrNull() ?: 1L
+    )
+}
+
+/**
+ * Fills the form with an existing lottery so the owner can edit it.
+ */
+fun Lottery.toFormFields(): LotteryFormFields {
+    return LotteryFormFields(
+        title = title,
+        campsiteIds = campsiteIds.toSet(),
+        registrationStart = formatLotteryDate(registrationOpensAt?.toDate()),
+        registrationEnd = formatLotteryEndDate(registrationClosesAt?.toDate()),
+        bookingStart = formatLotteryDate(bookingOpensAt?.toDate()),
+        bookingEnd = formatLotteryEndDate(bookingClosesAt?.toDate()),
+        stayStart = stayStartDate,
+        stayEnd = stayEndDate,
+        winnerCount = winnerCount.toString(),
+        waitlistCapacity = waitlistCapacity?.toString() ?: ""
     )
 }

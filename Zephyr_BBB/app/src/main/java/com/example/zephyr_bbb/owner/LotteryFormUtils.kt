@@ -147,6 +147,22 @@ fun formatLotteryDate(
 
     return format.format(date)
 }
+
+/**
+ * Formats a closing moment back into the inclusive end date the owner typed.
+ * This undoes parseLotteryEndDate.
+ */
+fun formatLotteryEndDate(
+    closesAt: Date?,
+    timeZone: TimeZone = TimeZone.getDefault()
+): String {
+    if (closesAt == null) {
+        return ""
+    }
+
+    return formatLotteryDate(Date(closesAt.time - 1), timeZone)
+}
+
 /**
  * Formats a period for display, e.g. "Oct 1–14, 2026" or "Oct 28 – Nov 3, 2026".
  *
@@ -239,4 +255,8 @@ fun lotteryStatusLabel(
         }
         else -> status.replaceFirstChar { it.uppercase() }
     }
+}
+
+fun canEditLottery(status: String): Boolean {
+    return status == "open"
 }

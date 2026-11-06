@@ -38,6 +38,8 @@ import com.example.zephyr_bbb.owner.OwnerMyCampsitesScreen
 import com.example.zephyr_bbb.owner.OwnerMyLotteriesScreen
 import com.example.zephyr_bbb.owner.OwnerMyReservationsScreen
 import com.example.zephyr_bbb.owner.OwnerNotificationsScreen
+import com.example.zephyr_bbb.owner.OwnerEditLotteryScreen
+import com.example.zephyr_bbb.owner.OwnerLotteryDetailsScreen
 
 
 /**
@@ -207,6 +209,9 @@ fun CustomNavigationBar(
                     },
                     onCreateLotteryClick = {
                         navController.navigate("owner_create_lottery")
+                    },
+                    onLotteryClick = {lottery->
+                        navController.navigate("owner_lottery_details/${lottery.id}")
                     }
                 )
             }
@@ -223,6 +228,29 @@ fun CustomNavigationBar(
             ) {backStackEntry->
                 OwnerCreateLotteryScreen(
                     preselectedCampsiteId = backStackEntry.arguments?.getString("campsiteId"),
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("owner_lottery_details/{lotteryId}") { backStackEntry ->
+                val lotteryId = backStackEntry.arguments?.getString("lotteryId") ?: ""
+                OwnerLotteryDetailsScreen(
+                    lotteryId = lotteryId,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onEditLotteryClick = { id ->
+                        navController.navigate("owner_edit_lottery/$id")
+                    }
+                )
+            }
+
+            composable("owner_edit_lottery/{lotteryEditId}") {backStackEntry->
+                val lotteryId = backStackEntry.arguments?.getString("lotteryEditId") ?: ""
+                OwnerEditLotteryScreen(
+                    lotteryEditId = lotteryId,
                     onBackClick = {
                         navController.popBackStack()
                     }
