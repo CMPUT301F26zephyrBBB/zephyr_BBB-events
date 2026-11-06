@@ -27,6 +27,14 @@ import com.example.zephyr_bbb.database.repository.AdminRepository
 import com.example.zephyr_bbb.database.repository.UserRepository
 
 // admin screen for browsing and removing campsites
+// outstanding: details page does not show amenities, tags, rules, or owner, lottery and qr buttons yet
+
+/**
+ * Lets an admin browse all registered campsites, view one, and remove it.
+ * Removing a campsite also updates any lottery it was listed in.
+ *
+ * @param onBackClick called when the admin presses back on the campsite list
+ */
 @Composable
 fun AdminCampsiteScreen(
     onBackClick: () -> Unit

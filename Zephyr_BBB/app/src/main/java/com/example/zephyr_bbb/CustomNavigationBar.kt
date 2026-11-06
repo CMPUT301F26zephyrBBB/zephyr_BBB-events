@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -30,12 +31,17 @@ import com.example.zephyr_bbb.admin.AdminDashboardScreen
 import com.example.zephyr_bbb.admin.AdminImageScreen
 import com.example.zephyr_bbb.admin.AdminNotificationLogScreen
 import com.example.zephyr_bbb.admin.AdminUserScreen
+import com.example.zephyr_bbb.entrant.CampsiteDetailsScreen
+import com.example.zephyr_bbb.entrant.CampsiteDetailsViewModel
+import com.example.zephyr_bbb.entrant.CampsiteFilterScreen
+import com.example.zephyr_bbb.entrant.CampsiteSearchViewModel
+import com.example.zephyr_bbb.entrant.QrScanScreen
 import com.example.zephyr_bbb.entrant.EntrantReservationsScreen
 import com.example.zephyr_bbb.entrant.NotificationsScreen
+import com.example.zephyr_bbb.entrant.ProfileScreen
 import com.example.zephyr_bbb.entrant.ReservationConfirmationScreen
 import com.example.zephyr_bbb.entrant.ReserveScreen
 import com.example.zephyr_bbb.entrant.WinScreen
-import com.example.zephyr_bbb.entrant.ProfileScreen
 import com.example.zephyr_bbb.owner.OwnerAddCampsiteScreen
 import com.example.zephyr_bbb.owner.OwnerCreateLotteryScreen
 import com.example.zephyr_bbb.owner.OwnerDashboardScreen
@@ -62,6 +68,8 @@ fun CustomNavigationBar(
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
+    // Shared by the search and filter screens so applied filters reach the results list
+    val searchViewModel: CampsiteSearchViewModel = viewModel()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -103,12 +111,62 @@ fun CustomNavigationBar(
                     },
                     onOwnerClick = {
                         navController.navigate("owner")
+                    },
+                    onScanClick = {
+                        navController.navigate("qr_scan")
+                    }
+                )
+            }
+
+            composable("qr_scan") {
+                QrScanScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onCampsiteScanned = { campsiteId ->
+                        // Leave the scanner out of the back stack so Back from the details goes home
+                        navController.navigate("campsite_details/$campsiteId") {
+                            popUpTo("qr_scan") { inclusive = true }
+                        }
                     }
                 )
             }
 
             composable("campsites") {
-                CampsitesScreen()
+                CampsitesScreen(
+                    viewModel = searchViewModel,
+                    onFilterClick = {
+                        navController.navigate("campsite_filters")
+                    },
+                    onCampsiteClick = { campsite ->
+                        navController.navigate("campsite_details/${campsite.id}")
+                    }
+                )
+            }
+
+            composable("campsite_filters") {
+                CampsiteFilterScreen(
+                    viewModel = searchViewModel,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onApplyClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("campsite_details/{campsiteId}") { backStackEntry ->
+                val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
+                // Created inside the destination so each visit starts with fresh state
+                val detailsViewModel: CampsiteDetailsViewModel = viewModel()
+                CampsiteDetailsScreen(
+                    campsiteId = campsiteId,
+                    viewModel = detailsViewModel,
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
             }
 
             composable("lotteries") {
@@ -130,6 +188,14 @@ fun CustomNavigationBar(
             }
 
             // ---------- Entrant: account and reservations ----------
+
+            composable("profile") {
+                ProfileScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
 
             composable("notifications") {
                 NotificationsScreen(
@@ -179,14 +245,6 @@ fun CustomNavigationBar(
                 ReservationConfirmationScreen(
                     reservationId = reservationId,
                     onDoneClick = {
-                        navController.popBackStack()
-                    }
-                )
-            }
-
-            composable("profile") {
-                ProfileScreen(
-                    onBackClick = {
                         navController.popBackStack()
                     }
                 )
