@@ -1,0 +1,57 @@
+# CMPUT 301 : Project
+
+## Student Details
+
+- **Full Name:** `Seth Lindstrom`
+- **CCID:** `slindstr`
+
+## References and Resources
+
+Google Gemini
+Learned and found out about verticalScroll element from google Gemini, following the input
+"In Android Studio Kotlin how can I make it so that i can scroll down a column of outlined text 
+fields"
+November 1, 2026
+
+
+
+Stack Overflow
+Used in QRCodeGenerator.kt 
+How to create a unique QR code, used David Ferrand and Siddharth Kamaria's getQrCodeBitmap()
+function as a basis for my QR code function. Then modified it so it would fit my use case,
+
+This is what there function looked like at the time:
+"
+fun getQrCodeBitmap(ssid: String, password: String): Bitmap {
+    val size = 512 //pixels
+    val qrCodeContent = "WIFI:S:$ssid;T:WPA;P:$password;;"
+    val hints = hashMapOf<EncodeHintType, Int>().also { it[EncodeHintType.MARGIN] = 1 } // Make the QR code buffer border narrower
+    val bits = QRCodeWriter().encode(qrCodeContent, BarcodeFormat.QR_CODE, size, size, hints) 
+    return Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565).also {
+        for (x in 0 until size) {
+            for (y in 0 until size) {
+                it.setPixel(x, y, if (bits[x, y]) Color.BLACK else Color.WHITE)
+            }
+        }
+    }
+}
+"
+
+URL - https://stackoverflow.com/a/64504871
+
+License - https://creativecommons.org/licenses/by-sa/4.0/legalcode.en
+Date Published - October 23, 2020 by Siddharth Kamaria
+Date Edited - December 4, 2023 by David Ferrand
+
+
+Android Developers
+Knowledge of the navController and related functions came from Android Studio Developers Documentation
+Used some code from Android Studio Developers about the Navigation Bar documentation
+URL: https://developer.android.com/develop/ui/compose/components/navigation-bar
+Some also came from the GitHub url listed on the webpage which is just the big documentation
+file.
+GitHub URL: https://github.com/android/snippets/blob/main/compose/snippets/src/main/java/com/example/compose/snippets/components/Navigation.kt
+
+Liscense -  https://creativecommons.org/licenses/by/2.5/
+Date Published - 2026-10-28
+

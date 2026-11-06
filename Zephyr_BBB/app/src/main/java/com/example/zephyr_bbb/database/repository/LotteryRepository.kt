@@ -11,10 +11,8 @@ import com.google.firebase.firestore.Query
 
 /**
  * Handles lottery creation, editing, waitlists, results and declines.
- *
  * Lotteries: lotteries/{lotteryId}
  * Entries: lotteries/{lotteryId}/entries/{entrantId}
- *
  * Call after sign-in. Dates supplied by screens use YYYY-MM-DD.
  * Automatic scheduling is handled separately.
  * Draw transactions are intended for small classroom waitlists.
