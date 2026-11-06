@@ -1,6 +1,10 @@
 package com.example.zephyr_bbb.owner
 
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,7 +30,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.zephyr_bbb.database.model.Campsite
 import com.example.zephyr_bbb.database.repository.CampsiteRepository
+import com.example.zephyr_bbb.database.repository.ImageRepository
 import com.example.zephyr_bbb.database.repository.UserRepository
+import kotlin.contracts.contract
 
 
 /**
@@ -45,11 +51,14 @@ fun OwnerAddCampsiteScreen(
     var errorMessage by remember {
         mutableStateOf<String?>("")
     }
-    var campsiteRepository = remember {
+    val campsiteRepository = remember {
         CampsiteRepository()
     }
-    var userRepository = remember {
+    val userRepository = remember {
         UserRepository()
+    }
+    val imageRepository = remember{
+        ImageRepository()
     }
     var campsiteName by remember {
         mutableStateOf("")
@@ -75,14 +84,19 @@ fun OwnerAddCampsiteScreen(
     var campsiteOwnerId by remember {
         mutableStateOf("")
     }
-    var promoImageId by remember {
-        mutableStateOf("")
+    var selectedImageUri by remember {
+        mutableStateOf<Uri?>(null)
     }
     var campsiteTags by remember {
         mutableStateOf("")
     }
     var isLoading by remember {
         mutableStateOf(true)
+    }
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) {
+            uri: Uri? -> selectedImageUri = uri
     }
 
     // Gets the campsite owners user id for the creation of the campsite
@@ -125,7 +139,7 @@ fun OwnerAddCampsiteScreen(
             Button(
                 onClick = onBackClick
             ) {
-                Text("Back")
+                Text("<")
             }
 
             Text("Add Campsite")
@@ -190,13 +204,12 @@ fun OwnerAddCampsiteScreen(
             label = {Text("Enter Campsite Cancellation Policy")},
             modifier = Modifier.fillMaxWidth()
         )
-        // A input field for the user to enter a promotional image
-        OutlinedTextField(
-            value = promoImageId,
-            onValueChange = { promoImageId = it },
-            label = { Text("Enter Promo Image ID or URL") },
+        Button(
+            onClick = {imagePickerLauncher.launch("image/*")},
             modifier = Modifier.fillMaxWidth()
-        )
+        ){
+            Text(if(selectedImageUri == null)"Select Campsite Image" else "Image Selected")
+        }
         // A input field for the user to enter tags for the campsite
         OutlinedTextField(
             value = campsiteTags,
@@ -223,7 +236,6 @@ fun OwnerAddCampsiteScreen(
                         .map{it.trim()}
                         .filter{it.isNotEmpty()},
                     coordinates = null,
-                    promoImageId = promoImageId.ifBlank {null},
                     id = "",
                     ownerId = campsiteOwnerId,
                     ratingSum = 0L,
@@ -234,9 +246,23 @@ fun OwnerAddCampsiteScreen(
                 // Calls the function that creates and sends the campsite info to the DB
                 campsiteRepository.createCampsite(
                     campsite = campsiteInfo,
-                    onSuccess = {
+                    onSuccess = {campsiteId ->
                         errorMessage = null
-                        onBackClick()
+                        if (selectedImageUri != null){
+                            imageRepository.uploadImage(
+                                uri = selectedImageUri!!,
+                                targetType = "campsite",
+                                targetId = campsiteId,
+                                onSuccess = {imageId ->
+                                    onBackClick()
+                                },
+                                onFailure = {
+                                    errorMessage = "Campsite Created but image failed to upload"
+                                }
+                            )
+                        } else {
+                            onBackClick()
+                        }
                     },
                     onFailure = {
                         errorMessage = "Failed to create campsite"

@@ -2,6 +2,7 @@ package com.example.zephyr_bbb.admin
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -27,6 +29,15 @@ import com.example.zephyr_bbb.database.repository.AdminRepository
 import com.example.zephyr_bbb.database.repository.UserRepository
 
 // admin screen for browsing and removing profiles
+// outstanding: profile page does not show messages, reservations or registered campsites yet
+
+/**
+ * Lets an admin browse all active profiles, filter them by role,
+ * view a profile, and remove it.
+ * Owners are removed with their campsites, entrants are removed on their own.
+ *
+ * @param onBackClick called when the admin presses back on the profile list
+ */
 @Composable
 fun AdminUserScreen(
     onBackClick: () -> Unit
@@ -54,6 +65,11 @@ fun AdminUserScreen(
     }
 
     var errorMessage by remember {
+        mutableStateOf<String?>(null)
+    }
+
+    // which role the profile list is filtered by, null shows everyone
+    var roleFilter by remember {
         mutableStateOf<String?>(null)
     }
 
@@ -222,6 +238,34 @@ fun AdminUserScreen(
             modifier = Modifier.padding(vertical = 12.dp)
         )
 
+        Text("Filter by profile role")
+
+        // filter chips, tap a selected chip again to show everyone
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+
+            FilterChip(
+                selected = roleFilter == "owner",
+                onClick = {
+                    roleFilter = if (roleFilter == "owner") null else "owner"
+                },
+                label = {
+                    Text("Campsite Owners")
+                }
+            )
+
+            FilterChip(
+                selected = roleFilter == "entrant",
+                onClick = {
+                    roleFilter = if (roleFilter == "entrant") null else "entrant"
+                },
+                label = {
+                    Text("Entrants")
+                }
+            )
+        }
+
         errorMessage?.let { error ->
             Text(
                 text = "Error: $error",
@@ -235,8 +279,15 @@ fun AdminUserScreen(
             )
         }
 
+        // owners also have the entrant role, so entrants means non-owners
+        val shownUsers = when (roleFilter) {
+            "owner" -> users.filter { "owner" in it.roles }
+            "entrant" -> users.filter { "owner" !in it.roles }
+            else -> users
+        }
+
         LazyColumn {
-            items(users) { user ->
+            items(shownUsers) { user ->
 
                 Column(
                     modifier = Modifier
