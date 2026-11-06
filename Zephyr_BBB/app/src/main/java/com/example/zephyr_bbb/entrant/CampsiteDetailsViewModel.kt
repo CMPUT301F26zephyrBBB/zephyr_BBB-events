@@ -12,16 +12,16 @@ import com.example.zephyr_bbb.database.repository.LotteryRepository
 
 // Holds the state of the campsite details screen so the screen only displays it and forwards
 // events (keeps UI separate from logic).
-// Outstanding issues: after a join or leave the lottery is reloaded, so the entrant count on
+// Outstanding issues: after a join or leave the lotteries are reloaded, so the entrant count on
 // screen is only as fresh as that reload
 
 /**
- * State holder for one campsite's details and its open lottery
+ * State holder for one campsite's details and its open lotteries
  * (01.01.05, 01.01.06, 01.02.01, 01.02.02).
  * Create one per details screen so the state of one campsite is never shown for another
  *
  * @param campsiteRepository where the campsite is read
- * @param lotteryRepository where the open lottery, the entrant's entry, and joining and leaving
+ * @param lotteryRepository where the open lotteries, the entrant's entries, and joining and leaving
  * are handled
  */
 class CampsiteDetailsViewModel(
@@ -33,15 +33,15 @@ class CampsiteDetailsViewModel(
     var campsite by mutableStateOf<Campsite?>(null)
         private set
 
-    /** The open lottery shown for the campsite, or null if it has none. */
-    var lottery by mutableStateOf<Lottery?>(null)
+    /** The open lotteries of the campsite, the one closing registration first at the top. */
+    var lotteries by mutableStateOf<List<Lottery>>(emptyList())
         private set
 
-    /** The entrant's own entry in [lottery], or null if they have not joined. */
-    var entry by mutableStateOf<LotteryEntry?>(null)
+    /** The entrant's own entry in each lottery of [lotteries], keyed by lottery ID. */
+    var entries by mutableStateOf<Map<String, LotteryEntry?>>(emptyMap())
         private set
 
-    /** True while the campsite and lottery are being loaded. */
+    /** True while the campsite and its lotteries are being loaded. */
     var isLoading by mutableStateOf(false)
         private set
 
@@ -65,12 +65,15 @@ class CampsiteDetailsViewModel(
     private var loadNumber = 0
     private var campsiteId = ""
 
-    /** The button the entrant should currently see for the lottery. */
-    val joinAction: JoinAction
-        get() = joinAction(lottery, entry)
+    /**
+     * The button the entrant should currently see for one of the campsite's lotteries.
+     *
+     * @param lottery one of the lotteries in [lotteries]
+     */
+    fun joinActionFor(lottery: Lottery): JoinAction = joinAction(lottery, entries[lottery.id])
 
     /**
-     * Loads the campsite, its open lottery, and whether the entrant has joined that lottery.
+     * Loads the campsite, its open lotteries, and whether the entrant has joined each of them.
      *
      * @param id the ID of the campsite to show, for example from a search result or a QR code
      */
@@ -91,7 +94,7 @@ class CampsiteDetailsViewModel(
                         notFound = true
                         isLoading = false
                     } else {
-                        loadLottery(id, thisLoad)
+                        loadLotteries(id, thisLoad)
                     }
                 }
             },
@@ -104,62 +107,72 @@ class CampsiteDetailsViewModel(
         )
     }
 
-    // The lottery is optional so a campsite without one is still shown, so a failure here is not
+    // Lotteries are optional so a campsite without any is still shown, so a failure here is not
     // treated as the whole screen failing
-    private fun loadLottery(id: String, forLoad: Int) {
+    private fun loadLotteries(id: String, forLoad: Int) {
         lotteryRepository.getActiveLotteriesForCampsite(
             campsiteId = id,
-            onSuccess = { lotteries ->
+            onSuccess = { found ->
                 if (forLoad == loadNumber) {
-                    val chosen = chooseLottery(lotteries)
-                    lottery = chosen
-                    if (chosen == null) {
-                        entry = null
-                        isLoading = false
-                    } else {
-                        loadEntry(chosen.id, forLoad)
-                    }
+                    val sorted = sortLotteries(found)
+                    lotteries = sorted
+                    loadEntries(sorted, forLoad)
                 }
             },
             onFailure = {
                 if (forLoad == loadNumber) {
-                    lottery = null
-                    entry = null
+                    lotteries = emptyList()
+                    entries = emptyMap()
                     isLoading = false
                 }
             }
         )
     }
 
-    private fun loadEntry(lotteryId: String, forLoad: Int) {
-        attempt {
-            lotteryRepository.getMyEntry(
-                lotteryId = lotteryId,
-                onSuccess = { found ->
-                    if (forLoad == loadNumber) {
-                        entry = found
-                        isLoading = false
-                    }
-                },
-                onFailure = {
-                    if (forLoad == loadNumber) {
-                        entry = null
-                        isLoading = false
-                    }
-                }
-            )
+    // Looks up the entrant's entry in every lottery, and finishes loading once all have answered
+    private fun loadEntries(open: List<Lottery>, forLoad: Int) {
+        if (open.isEmpty()) {
+            entries = emptyMap()
+            isLoading = false
+            return
+        }
+        val loaded = mutableMapOf<String, LotteryEntry?>()
+        fun answered(lotteryId: String, entry: LotteryEntry?) {
+            if (forLoad != loadNumber) return
+            loaded[lotteryId] = entry
+            if (loaded.size == open.size) {
+                entries = loaded.toMap()
+                isLoading = false
+            }
+        }
+        try {
+            open.forEach { lottery ->
+                lotteryRepository.getMyEntry(
+                    lotteryId = lottery.id,
+                    onSuccess = { answered(lottery.id, it) },
+                    onFailure = { answered(lottery.id, null) }
+                )
+            }
+        } catch (error: IllegalStateException) {
+            // Nobody is signed in yet, so the entrant cannot have joined anything
+            entries = emptyMap()
+            isLoading = false
         }
     }
 
-    /** Joins the open lottery's waiting list, then reloads so the screen shows the new state */
-    fun joinLottery() {
-        val current = lottery ?: return
-        if (isWorking) return
+    /**
+     * Joins the waiting list of one of the open lotteries, then reloads so the screen shows the
+     * new state.
+     *
+     * @param lotteryId the ID of the lottery to join
+     */
+    fun joinLottery(lotteryId: String) {
+        if (isWorking || lotteries.none { it.id == lotteryId }) return
         isWorking = true
         actionError = null
         attempt {
             lotteryRepository.joinWaitlist(
-                lotteryId = current.id,
+                lotteryId = lotteryId,
                 onSuccess = {
                     isWorking = false
                     load(campsiteId)
@@ -172,15 +185,19 @@ class CampsiteDetailsViewModel(
         }
     }
 
-    /** Leaves the open lottery's waiting list, then reloads so the screen shows the new state. */
-    fun leaveLottery() {
-        val current = lottery ?: return
-        if (isWorking) return
+    /**
+     * Leaves the waiting list of one of the open lotteries, then reloads so the screen shows the
+     * new state.
+     *
+     * @param lotteryId the ID of the lottery to leave
+     */
+    fun leaveLottery(lotteryId: String) {
+        if (isWorking || lotteries.none { it.id == lotteryId }) return
         isWorking = true
         actionError = null
         attempt {
             lotteryRepository.leaveWaitlist(
-                lotteryId = current.id,
+                lotteryId = lotteryId,
                 onSuccess = {
                     isWorking = false
                     load(campsiteId)

@@ -33,10 +33,10 @@ import androidx.compose.ui.unit.dp
 import com.example.zephyr_bbb.database.model.Campsite
 import com.example.zephyr_bbb.database.model.Lottery
 
-// Entrant campsite details screen (01.01.05) with the open lottery of the campsite and the
-// buttons to join it and leave its waiting list (01.01.06, 01.02.01, 01.02.02)
+// Entrant campsite details screen (01.01.05) with the open lotteries of the campsite and the
+// buttons to join each one and leave its waiting list (01.01.06, 01.02.01, 01.02.02)
 // Outstanding issues: a campsite with no open lottery has no waiting list to join, because the
-// database only has waiting lists that belong to a lottery. Only one lottery is shown.
+// database only has waiting lists that belong to a lottery.
 // This meets the user story criteria without implementing the waitlist to get into a full lottery
 // we illustrated in our mockups
 
@@ -45,7 +45,7 @@ import com.example.zephyr_bbb.database.model.Lottery
  * It loads the campsite when it is opened and passes what was loaded to [CampsiteDetailsContent].
  *
  * @param campsiteId the ID of the campsite to show
- * @param viewModel holds the campsite, its open lottery, and the entrant's entry in it
+ * @param viewModel holds the campsite, its open lotteries, and the entrant's entry in each
  * @param onBackClick is invoked when the user clicks the back button
  */
 @Composable
@@ -60,8 +60,8 @@ fun CampsiteDetailsScreen(
 
     CampsiteDetailsContent(
         campsite = viewModel.campsite,
-        lottery = viewModel.lottery,
-        joinAction = viewModel.joinAction,
+        lotteries = viewModel.lotteries,
+        joinActionFor = { viewModel.joinActionFor(it) },
         isLoading = viewModel.isLoading,
         isWorking = viewModel.isWorking,
         notFound = viewModel.notFound,
@@ -69,17 +69,17 @@ fun CampsiteDetailsScreen(
         actionError = viewModel.actionError,
         onBackClick = onBackClick,
         onRetryClick = { viewModel.load(campsiteId) },
-        onJoinConfirmed = { viewModel.joinLottery() },
-        onLeaveConfirmed = { viewModel.leaveLottery() }
+        onJoinConfirmed = { viewModel.joinLottery(it) },
+        onLeaveConfirmed = { viewModel.leaveLottery(it) }
     )
 }
 
 /**
- * Composable function that displays the details of a campsite and its lottery
+ * Composable function that displays the details of a campsite and its open lotteries
  *
  * @param campsite the campsite to show, or null while it is loading or if it was not found
- * @param lottery the open lottery of the campsite, or null if it has none
- * @param joinAction which lottery button to show
+ * @param lotteries the open lotteries of the campsite, empty if it has none
+ * @param joinActionFor gives the button to show for each lottery
  * @param isLoading true while the campsite is loading
  * @param isWorking true while a join or leave request is running, which disables the buttons
  * @param notFound true when no campsite exists with the requested ID
@@ -87,15 +87,15 @@ fun CampsiteDetailsScreen(
  * @param actionError message to show if joining or leaving failed
  * @param onBackClick is invoked when the user clicks the back button
  * @param onRetryClick is invoked when the user clicks retry after a load error
- * @param onJoinConfirmed is invoked when the user confirms joining the lottery
- * @param onLeaveConfirmed is invoked when the user confirms leaving the waiting list
+ * @param onJoinConfirmed is invoked with the lottery ID when the user confirms joining a lottery
+ * @param onLeaveConfirmed is invoked with the lottery ID when the user confirms leaving a waiting list
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CampsiteDetailsContent(
     campsite: Campsite?,
-    lottery: Lottery?,
-    joinAction: JoinAction,
+    lotteries: List<Lottery>,
+    joinActionFor: (Lottery) -> JoinAction,
     isLoading: Boolean,
     isWorking: Boolean,
     notFound: Boolean,
@@ -103,61 +103,67 @@ fun CampsiteDetailsContent(
     actionError: String?,
     onBackClick: () -> Unit,
     onRetryClick: () -> Unit,
-    onJoinConfirmed: () -> Unit,
-    onLeaveConfirmed: () -> Unit
+    onJoinConfirmed: (String) -> Unit,
+    onLeaveConfirmed: (String) -> Unit
 ) {
-    var showJoinDialog by remember { mutableStateOf(false) }
-    var showLeaveDialog by remember { mutableStateOf(false) }
+    // The lottery the user is being asked to confirm joining or leaving, if any
+    var joinTarget by remember { mutableStateOf<Lottery?>(null) }
+    var leaveTarget by remember { mutableStateOf<Lottery?>(null) }
 
-    if (showJoinDialog) {
-        val closes = registrationText(
-            lottery?.registrationOpensAt?.toDate()?.time,
-            lottery?.registrationClosesAt?.toDate()?.time
-        )
+    joinTarget?.let { target ->
         AlertDialog(
-            onDismissRequest = { showJoinDialog = false },
+            onDismissRequest = { joinTarget = null },
             title = { Text("Join lottery?") },
             text = {
                 Text(
-                    "You will be added to the waiting list for ${campsite?.name ?: "this campsite"}. " +
-                        "Winners are drawn after registration closes. $closes"
+                    "You will be added to the waiting list for ${lotteryName(target)} at " +
+                        "${campsite?.name ?: "this campsite"}. Winners are drawn after registration closes. " +
+                        registrationText(
+                            target.registrationOpensAt?.toDate()?.time,
+                            target.registrationClosesAt?.toDate()?.time
+                        )
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showJoinDialog = false
-                        onJoinConfirmed()
+                        joinTarget = null
+                        onJoinConfirmed(target.id)
                     }
                 ) {
                     Text("Join")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showJoinDialog = false }) {
+                TextButton(onClick = { joinTarget = null }) {
                     Text("Cancel")
                 }
             }
         )
     }
 
-    if (showLeaveDialog) {
+    leaveTarget?.let { target ->
         AlertDialog(
-            onDismissRequest = { showLeaveDialog = false },
+            onDismissRequest = { leaveTarget = null },
             title = { Text("Leave waiting list?") },
-            text = { Text("You will lose your place in this lottery. You can join again while registration is open.") },
+            text = {
+                Text(
+                    "You will leave the waiting list for ${lotteryName(target)}. " +
+                        "You can join again while registration is open."
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showLeaveDialog = false
-                        onLeaveConfirmed()
+                        leaveTarget = null
+                        onLeaveConfirmed(target.id)
                     }
                 ) {
                     Text("Leave")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showLeaveDialog = false }) {
+                TextButton(onClick = { leaveTarget = null }) {
                     Text("Stay")
                 }
             }
@@ -250,26 +256,49 @@ fun CampsiteDetailsContent(
                     Text(campsite.cancellationPolicy)
                 }
 
-                LotteryCard(
-                    lottery = lottery,
-                    joinAction = joinAction,
-                    isWorking = isWorking,
-                    actionError = actionError,
-                    onJoinClick = { showJoinDialog = true },
-                    onLeaveClick = { showLeaveDialog = true }
-                )
+                if (lotteries.isEmpty()) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text("Lottery", style = MaterialTheme.typography.titleMedium)
+                            Text("No active lottery for this campsite right now.")
+                        }
+                    }
+                } else {
+                    Text(
+                        text = if (lotteries.size == 1) "Open lottery" else "Open lotteries",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    lotteries.forEach { lottery ->
+                        LotteryCard(
+                            lottery = lottery,
+                            joinAction = joinActionFor(lottery),
+                            isWorking = isWorking,
+                            onJoinClick = { joinTarget = lottery },
+                            onLeaveClick = { leaveTarget = lottery }
+                        )
+                    }
+                    actionError?.let {
+                        Text(text = it, color = MaterialTheme.colorScheme.error)
+                    }
+                }
             }
         }
     }
 }
 
-// The card with the open lottery of the campsite and the button to join or leave it
+// What a lottery is called in dialogs and cards, since the owner may leave the title blank
+private fun lotteryName(lottery: Lottery): String =
+    lottery.title.ifBlank { "this lottery" }
+
+// The card for one open lottery of the campsite and the button to join or leave it
 @Composable
 private fun LotteryCard(
-    lottery: Lottery?,
+    lottery: Lottery,
     joinAction: JoinAction,
     isWorking: Boolean,
-    actionError: String?,
     onJoinClick: () -> Unit,
     onLeaveClick: () -> Unit
 ) {
@@ -278,70 +307,61 @@ private fun LotteryCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Text("Lottery", style = MaterialTheme.typography.titleMedium)
-
-            if (lottery == null) {
-                Text("No active lottery for this campsite right now.")
-            } else {
-                if (lottery.title.isNotBlank()) {
-                    Text(lottery.title, style = MaterialTheme.typography.titleSmall)
-                }
-                Text(
-                    registrationText(
-                        lottery.registrationOpensAt?.toDate()?.time,
-                        lottery.registrationClosesAt?.toDate()?.time
-                    )
+            Text(
+                text = lottery.title.ifBlank { "Lottery" },
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                registrationText(
+                    lottery.registrationOpensAt?.toDate()?.time,
+                    lottery.registrationClosesAt?.toDate()?.time
                 )
-                val stay = stayText(lottery.stayStartDate, lottery.stayEndDate)
-                if (stay.isNotEmpty()) {
-                    Text(stay)
-                }
-                Text(winnersText(lottery.winnerCount))
-                Text(entrantsText(lottery.entryCount))
-
-                when (joinAction) {
-                    JoinAction.JOIN -> {
-                        Button(
-                            onClick = onJoinClick,
-                            enabled = !isWorking,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Join Lottery")
-                        }
-                    }
-
-                    JoinAction.LEAVE -> {
-                        Text(
-                            text = "You are on the waiting list.",
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        OutlinedButton(
-                            onClick = onLeaveClick,
-                            enabled = !isWorking,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Leave Waiting List")
-                        }
-                    }
-
-                    JoinAction.FULL -> {
-                        Button(
-                            onClick = {},
-                            enabled = false,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Waiting list full")
-                        }
-                    }
-
-                    JoinAction.NONE -> {
-                        Text("You already have a result in this lottery.")
-                    }
-                }
+            )
+            val stay = stayText(lottery.stayStartDate, lottery.stayEndDate)
+            if (stay.isNotEmpty()) {
+                Text(stay)
             }
+            Text(winnersText(lottery.winnerCount))
+            Text(entrantsText(lottery.entryCount))
 
-            actionError?.let {
-                Text(text = it, color = MaterialTheme.colorScheme.error)
+            when (joinAction) {
+                JoinAction.JOIN -> {
+                    Button(
+                        onClick = onJoinClick,
+                        enabled = !isWorking,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Join Lottery")
+                    }
+                }
+
+                JoinAction.LEAVE -> {
+                    Text(
+                        text = "You are on the waiting list.",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    OutlinedButton(
+                        onClick = onLeaveClick,
+                        enabled = !isWorking,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Leave Waiting List")
+                    }
+                }
+
+                JoinAction.FULL -> {
+                    Button(
+                        onClick = {},
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Waiting list full")
+                    }
+                }
+
+                JoinAction.NONE -> {
+                    Text("You already have a result in this lottery.")
+                }
             }
         }
     }

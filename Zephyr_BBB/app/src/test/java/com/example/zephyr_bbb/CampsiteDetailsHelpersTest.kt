@@ -3,22 +3,21 @@ package com.example.zephyr_bbb
 import com.example.zephyr_bbb.database.model.Lottery
 import com.example.zephyr_bbb.database.model.LotteryEntry
 import com.example.zephyr_bbb.entrant.JoinAction
-import com.example.zephyr_bbb.entrant.chooseLottery
 import com.example.zephyr_bbb.entrant.entrantsText
 import com.example.zephyr_bbb.entrant.joinAction
 import com.example.zephyr_bbb.entrant.priceText
 import com.example.zephyr_bbb.entrant.registrationText
+import com.example.zephyr_bbb.entrant.sortLotteries
 import com.example.zephyr_bbb.entrant.stayText
 import com.example.zephyr_bbb.entrant.winnersText
 import com.google.firebase.Timestamp
 import java.util.Date
 import java.util.TimeZone
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 
 // Unit tests for CampsiteDetailsHelpers.kt
-// Checks which lottery is shown, which button the entrant gets, and the price and lottery text
+// Checks the order the lotteries are shown in, which button the entrant gets, and the price and lottery text
 // on the campsite details screen
 
 class CampsiteDetailsHelpersTest {
@@ -47,15 +46,32 @@ class CampsiteDetailsHelpersTest {
     private val waitingEntry = LotteryEntry(entrantId = "u1", lotteryId = "l1", status = "waiting")
 
     @Test
-    fun chooseLottery_emptyList_isNull() {
-        assertNull(chooseLottery(emptyList()))
+    fun sortLotteries_emptyList_isEmpty() {
+        assertEquals(emptyList<Lottery>(), sortLotteries(emptyList()))
     }
 
     @Test
-    fun chooseLottery_picksTheOneClosingFirst() {
+    fun sortLotteries_putsTheOneClosingFirstAtTheTop() {
         val later = lottery("later", closesAt = oct22 + 86_400_000L)
         val sooner = lottery("sooner", closesAt = oct22)
-        assertEquals("sooner", chooseLottery(listOf(later, sooner))?.id)
+        val latest = lottery("latest", closesAt = oct22 + 2 * 86_400_000L)
+        assertEquals(
+            listOf("sooner", "later", "latest"),
+            sortLotteries(listOf(later, latest, sooner)).map { it.id }
+        )
+    }
+
+    @Test
+    fun sortLotteries_keepsEveryLottery() {
+        val lotteries = listOf(lottery("a"), lottery("b"), lottery("c"))
+        assertEquals(3, sortLotteries(lotteries).size)
+    }
+
+    @Test
+    fun sortLotteries_lotteryWithoutCloseDateGoesLast() {
+        val unknown = lottery("unknown", closesAt = null)
+        val known = lottery("known", closesAt = oct22)
+        assertEquals("known", sortLotteries(listOf(unknown, known)).first().id)
     }
 
     @Test

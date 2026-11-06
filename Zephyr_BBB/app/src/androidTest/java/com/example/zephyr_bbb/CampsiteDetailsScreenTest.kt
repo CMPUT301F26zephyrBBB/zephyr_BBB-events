@@ -1,8 +1,10 @@
 package com.example.zephyr_bbb
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -20,7 +22,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 // Tests for CampsiteDetailsScreen.kt
-// Checks the campsite information and the lottery card show up, the join and leave dialogs ask
+// Checks the campsite information and the lottery cards show up (one per open lottery), the join and leave dialogs ask
 // for confirmation, and the loading, error and not found states.
 // Uses CampsiteDetailsContent with fake data, so these tests dont use Firestore
 
@@ -54,10 +56,23 @@ class CampsiteDetailsScreenTest {
         status = "open"
     )
 
+    private val winterDraw = Lottery(
+        id = "winter-draw",
+        title = "Winter break draw",
+        registrationOpensAt = Timestamp(Date(1792519200000L)),
+        registrationClosesAt = Timestamp(Date(1793124000000L)),
+        stayStartDate = "2026-12-20",
+        stayEndDate = "2026-12-23",
+        winnerCount = 1,
+        entryCount = 1,
+        status = "open"
+    )
+
     private fun show(
         campsite: Campsite? = pineCreek,
-        lottery: Lottery? = fallDraw,
+        lotteries: List<Lottery> = listOf(fallDraw),
         joinAction: JoinAction = JoinAction.JOIN,
+        joinActionFor: (Lottery) -> JoinAction = { joinAction },
         isLoading: Boolean = false,
         isWorking: Boolean = false,
         notFound: Boolean = false,
@@ -65,14 +80,14 @@ class CampsiteDetailsScreenTest {
         actionError: String? = null,
         onBackClick: () -> Unit = {},
         onRetryClick: () -> Unit = {},
-        onJoinConfirmed: () -> Unit = {},
-        onLeaveConfirmed: () -> Unit = {}
+        onJoinConfirmed: (String) -> Unit = {},
+        onLeaveConfirmed: (String) -> Unit = {}
     ) {
         composeTestRule.setContent {
             CampsiteDetailsContent(
                 campsite = campsite,
-                lottery = lottery,
-                joinAction = joinAction,
+                lotteries = lotteries,
+                joinActionFor = joinActionFor,
                 isLoading = isLoading,
                 isWorking = isWorking,
                 notFound = notFound,
@@ -111,7 +126,7 @@ class CampsiteDetailsScreenTest {
 
     @Test
     fun noLotteryShowsMessageAndNoJoinButton() {
-        show(lottery = null, joinAction = JoinAction.NONE)
+        show(lotteries = emptyList(), joinAction = JoinAction.NONE)
         composeTestRule.onNodeWithText("No active lottery for this campsite right now.")
             .performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText("Join Lottery").assertDoesNotExist()
@@ -127,13 +142,13 @@ class CampsiteDetailsScreenTest {
 
     @Test
     fun joinAsksForConfirmationThenJoins() {
-        var joins = 0
-        show(onJoinConfirmed = { joins++ })
+        val joined = mutableListOf<String>()
+        show(onJoinConfirmed = { joined.add(it) })
         composeTestRule.onNodeWithText("Join Lottery").performScrollTo().performClick()
         composeTestRule.onNodeWithText("Join lottery?").assertIsDisplayed()
-        assertEquals(0, joins)
+        assertEquals(0, joined.size)
         composeTestRule.onNodeWithText("Join").performClick()
-        assertEquals(1, joins)
+        assertEquals(listOf("fall-draw"), joined)
     }
 
     @Test
@@ -148,14 +163,73 @@ class CampsiteDetailsScreenTest {
 
     @Test
     fun joinedEntrantSeesLeaveButtonAndCanLeave() {
-        var leaves = 0
-        show(joinAction = JoinAction.LEAVE, onLeaveConfirmed = { leaves++ })
+        val left = mutableListOf<String>()
+        show(joinAction = JoinAction.LEAVE, onLeaveConfirmed = { left.add(it) })
         composeTestRule.onNodeWithText("You are on the waiting list.").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText("Join Lottery").assertDoesNotExist()
         composeTestRule.onNodeWithText("Leave Waiting List").performScrollTo().performClick()
         composeTestRule.onNodeWithText("Leave waiting list?").assertIsDisplayed()
         composeTestRule.onNodeWithText("Leave").performClick()
-        assertEquals(1, leaves)
+        assertEquals(listOf("fall-draw"), left)
+    }
+
+    @Test
+    fun showsEveryOpenLottery() {
+        show(lotteries = listOf(fallDraw, winterDraw))
+        composeTestRule.onNodeWithText("Open lotteries").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Fall long weekend draw").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Winter break draw").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Stay: 2026-12-20 to 2026-12-23").performScrollTo().assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Join Lottery").assertCountEquals(2)
+    }
+
+    @Test
+    fun singleLotteryIsLabelledOpenLottery() {
+        show()
+        composeTestRule.onNodeWithText("Open lottery").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun joiningTheSecondLotteryJoinsThatOne() {
+        val joined = mutableListOf<String>()
+        show(lotteries = listOf(fallDraw, winterDraw), onJoinConfirmed = { joined.add(it) })
+        composeTestRule.onAllNodesWithText("Join Lottery")[1].performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Join lottery?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Join").performClick()
+        assertEquals(listOf("winter-draw"), joined)
+    }
+
+    @Test
+    fun joinDialogNamesTheLottery() {
+        show(lotteries = listOf(fallDraw, winterDraw))
+        composeTestRule.onAllNodesWithText("Join Lottery")[1].performScrollTo().performClick()
+        composeTestRule.onNodeWithText(
+            "You will be added to the waiting list for Winter break draw",
+            substring = true
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun eachLotteryHasItsOwnButton() {
+        show(
+            lotteries = listOf(fallDraw, winterDraw),
+            joinActionFor = { if (it.id == "fall-draw") JoinAction.LEAVE else JoinAction.JOIN }
+        )
+        composeTestRule.onNodeWithText("Leave Waiting List").performScrollTo().assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Join Lottery").assertCountEquals(1)
+    }
+
+    @Test
+    fun leavingOneLotteryLeavesThatOne() {
+        val left = mutableListOf<String>()
+        show(
+            lotteries = listOf(fallDraw, winterDraw),
+            joinActionFor = { if (it.id == "winter-draw") JoinAction.LEAVE else JoinAction.JOIN },
+            onLeaveConfirmed = { left.add(it) }
+        )
+        composeTestRule.onNodeWithText("Leave Waiting List").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Leave").performClick()
+        assertEquals(listOf("winter-draw"), left)
     }
 
     @Test
@@ -178,14 +252,14 @@ class CampsiteDetailsScreenTest {
 
     @Test
     fun loadingShowsMessage() {
-        show(campsite = null, lottery = null, isLoading = true)
+        show(campsite = null, lotteries = emptyList(), isLoading = true)
         composeTestRule.onNodeWithText("Loading campsite...").assertIsDisplayed()
     }
 
     @Test
     fun notFoundShowsMessageAndBackStillWorks() {
         var backClicked = false
-        show(campsite = null, lottery = null, notFound = true, onBackClick = { backClicked = true })
+        show(campsite = null, lotteries = emptyList(), notFound = true, onBackClick = { backClicked = true })
         composeTestRule.onNodeWithText("This campsite could not be found.").assertIsDisplayed()
         composeTestRule.onNodeWithText("Back").performClick()
         assertTrue(backClicked)
@@ -194,7 +268,7 @@ class CampsiteDetailsScreenTest {
     @Test
     fun loadErrorShowsMessageAndRetry() {
         var retries = 0
-        show(campsite = null, lottery = null, loadError = "Network down", onRetryClick = { retries++ })
+        show(campsite = null, lotteries = emptyList(), loadError = "Network down", onRetryClick = { retries++ })
         composeTestRule.onNodeWithText("Network down").assertIsDisplayed()
         composeTestRule.onNodeWithText("Retry").performClick()
         assertEquals(1, retries)

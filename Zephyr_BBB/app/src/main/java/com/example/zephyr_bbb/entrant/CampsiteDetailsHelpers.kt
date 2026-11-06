@@ -7,9 +7,9 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-// Small helpers for the campsite details screen including which lottery to show, what the join button
-// should do and the text shown for the price and the lottery
-// Outstanding issues: only one lottery is shown per campsite, even if the owner has several open.
+// Small helpers for the campsite details screen including the order the lotteries are shown in, what
+// the join button should do and the text shown for the price and the lotteries
+// Outstanding issues: none known.
 
 private const val DAY_PATTERN = "MMM d"
 
@@ -29,13 +29,13 @@ enum class JoinAction {
 }
 
 /**
- * Picks the lottery to show on the details screen when a campsite has several open ones.
+ * Orders the open lotteries of a campsite for the details screen
  *
  * @param lotteries the lotteries currently accepting registrations for the campsite
- * @return the one that closes registration first, or null if the list is empty
+ * @return the same lotteries, the one that closes registration first at the top
  */
-fun chooseLottery(lotteries: List<Lottery>): Lottery? =
-    lotteries.minByOrNull { it.registrationClosesAt?.toDate()?.time ?: Long.MAX_VALUE }
+fun sortLotteries(lotteries: List<Lottery>): List<Lottery> =
+    lotteries.sortedBy { it.registrationClosesAt?.toDate()?.time ?: Long.MAX_VALUE }
 
 /**
  * Decides which button the entrant sees for a lottery.
