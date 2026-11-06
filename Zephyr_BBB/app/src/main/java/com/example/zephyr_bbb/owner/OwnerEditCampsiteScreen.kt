@@ -1,5 +1,8 @@
 package com.example.zephyr_bbb.owner
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,6 +28,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.zephyr_bbb.database.model.Campsite
 import com.example.zephyr_bbb.database.repository.CampsiteRepository
+import com.example.zephyr_bbb.database.repository.ImageRepository
+import kotlinx.coroutines.selects.select
 
 
 /**
@@ -43,6 +48,9 @@ fun OwnerEditCampsiteScreen(
 ){
     val campsiteRepository = remember{
         CampsiteRepository()
+    }
+    val imageRepository = remember{
+        ImageRepository()
     }
     var editName by remember{
         mutableStateOf("")
@@ -76,6 +84,14 @@ fun OwnerEditCampsiteScreen(
     }
     var errorMessage by remember{
         mutableStateOf<String?>(null)
+    }
+    var selectedImageUri by remember {
+        mutableStateOf<Uri?>(null)
+    }
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) {
+            uri: Uri? -> selectedImageUri = uri
     }
 
     LaunchedEffect(campsiteEditId){
@@ -119,7 +135,7 @@ fun OwnerEditCampsiteScreen(
                     onBackClick()
                 }
             ) {
-                Text("Back")
+                Text("<")
             }
 
             Text("Edit Campsite")
@@ -181,13 +197,18 @@ fun OwnerEditCampsiteScreen(
             label = {Text("Enter Campsite Cancellation Policy")},
             modifier = Modifier.fillMaxWidth()
         )
-        // A input field for editing the image
-        OutlinedTextField(
-            value = editImage,
-            onValueChange = {editImage = it},
-            label = {Text("Enter Promo Image ID or URL")},
+        Button(
+            onClick = {imagePickerLauncher.launch("image/*")},
             modifier = Modifier.fillMaxWidth()
-        )
+        ){
+            Text(
+                when {
+                    selectedImageUri != null -> "New Image Selected"
+                    editImage.isNotBlank() -> "Change Image"
+                    else -> "Select Campsite Image"
+                }
+            )
+        }
         // A input field for editing the tags
         OutlinedTextField(
             value = editTags,
@@ -218,7 +239,21 @@ fun OwnerEditCampsiteScreen(
                 campsiteRepository.updateCampsite(
                     campsite = campsiteUpdated,
                     onSuccess = {
-                        onBackClick()
+                        if (selectedImageUri != null){
+                            imageRepository.uploadImage(
+                                uri = selectedImageUri!!,
+                                targetId = campsiteEditId,
+                                targetType = "campsite",
+                                onSuccess = {imageId ->
+                                    onBackClick()
+                                },
+                                onFailure = {
+                                    errorMessage = "Campsite Updated, Image Failed To Upload"
+                                }
+                            )
+                        } else {
+                            onBackClick()
+                        }
                     },
                     onFailure = {error->
                         errorMessage = error.message
