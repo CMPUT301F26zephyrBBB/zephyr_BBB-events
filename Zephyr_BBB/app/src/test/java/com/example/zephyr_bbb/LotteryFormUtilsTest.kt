@@ -24,6 +24,7 @@ import java.util.TimeZone
  * Date reading and display, the name and stay-date checks, and the Active and Completed labels.
  * Inclusive registration end dates, the registration checks, and how the period is displayed.
  * The booking checks, including that booking must stay open after registration ends.
+ * At least one winner is required.
  *
  * At least one campsite is required, and several are allowed.
  */
@@ -198,5 +199,17 @@ class LotteryFormUtilsTest {
             stayEnd = "2026-10-21"
         )
         assertEquals("The stay must end after it starts.", fields.validate(utc))
+    }
+    /** Zero or blank winners are rejected. */
+    @Test
+    fun formRequiresAtLeastOneWinner() {
+        assertEquals(
+            "Choose at least one winner.",
+            validFields.copy(winnerCount = "0").validate(utc)
+        )
+        assertEquals(
+            "Choose at least one winner.",
+            validFields.copy(winnerCount = "").validate(utc)
+        )
     }
 }

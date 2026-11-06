@@ -18,16 +18,18 @@ import java.util.TimeZone
  * @property campsiteIds The IDs of the campsites the owner has ticked
  * @property bookingStart First day of booking, YYYY-MM-DD
  * @property bookingEnd Last day of booking, YYYY-MM-DD
+ * @property winnerCount Number of winners to draw
  **/
 data class LotteryFormFields(
     val title: String = "",
     val campsiteIds: Set<String> = emptySet(),
     val registrationStart: String = "",
     val registrationEnd: String = "",
-    val stayStart: String = "",
-    val stayEnd: String = "",
     val bookingStart: String = "",
     val bookingEnd: String = "",
+    val stayStart: String = "",
+    val stayEnd: String = "",
+    val winnerCount: String = "1"
 )
 
 /**
@@ -39,6 +41,7 @@ data class LotteryFormFields(
  *  Checks that the registration dates are real dates and registration ends after it starts.
  *  Checks that the booking dates are real dates, booking ends after it starts, and booking
  *  stays open after registration ends.
+ *  Checks that there is at least one winner.
  *  @param timeZone The time zone the dates are read in, normally the phone's
  *  @return An error message to show the owner, or null if the form is ready to publish
  */
@@ -76,6 +79,11 @@ fun LotteryFormFields.validate(timeZone: TimeZone = TimeZone.getDefault()): Stri
     }
     if (stayEndDate <= stayStartDate) {
         return "The stay must end after it starts."
+    }
+    val winners = winnerCount.toLongOrNull()
+
+    if (winners == null || winners < 1) {
+        return "Choose at least one winner."
     }
     return null
 }

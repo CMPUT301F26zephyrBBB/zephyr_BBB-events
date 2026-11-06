@@ -38,6 +38,7 @@ import com.google.firebase.Timestamp
  *  The form is checked with LotteryFormFields.validate() before onSubmit is called.
  *  The owner can set the registration period.
  *  The owner can pick one or more campsites.
+ *  The owner can set the number of winners.
  *
  *  @param heading The text shown beside the back button
  *  @param fields The values currently in the form
@@ -153,6 +154,18 @@ fun LotteryForm(
             onEndChange = { onFieldsChange(fields.copy(stayEnd = it)) }
         )
 
+        OutlinedTextField(
+            value = fields.winnerCount,
+            onValueChange = { input ->
+                if (input.all { it.isDigit() }) {
+                    onFieldsChange(fields.copy(winnerCount = input))
+                }
+            },
+            label = { Text("Winner count") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth()
+        )
+
         val shownError = validationError ?: errorMessage
 
         if (!shownError.isNullOrBlank()) {
@@ -241,6 +254,7 @@ fun LotteryFormFields.toLottery(id: String = ""): Lottery {
         registrationOpensAt = parseLotteryDate(registrationStart)?.let { Timestamp(it) },
         registrationClosesAt = parseLotteryEndDate(registrationEnd)?.let { Timestamp(it) },
         bookingOpensAt = parseLotteryDate(bookingStart)?.let { Timestamp(it) },
-        bookingClosesAt = parseLotteryEndDate(bookingEnd)?.let { Timestamp(it) }
+        bookingClosesAt = parseLotteryEndDate(bookingEnd)?.let { Timestamp(it) },
+        winnerCount = winnerCount.toLongOrNull() ?: 1L
     )
 }

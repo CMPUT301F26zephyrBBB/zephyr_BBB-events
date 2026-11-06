@@ -208,6 +208,9 @@ fun LotteryDetailsContent(
         )
         Text("Stay dates")
         Text(formatStayRange(lottery.stayStartDate, lottery.stayEndDate))
+
+        Text("Winner count: ${lottery.winnerCount}")
+
         if (canEditLottery(lottery.status)) {
             Button(
                 onClick = onEditLotteryClick,
