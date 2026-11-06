@@ -13,6 +13,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 // main menu for admin tools
+// outstanding: all messages and role switch not added yet (US 03.12.01, US 03.11.01)
+
+/**
+ * Main admin menu with links to every admin tool.
+ *
+ * @param onBackClick called when the admin presses back
+ * @param onProfilesClick opens the profile browser
+ * @param onCampsitesClick opens the campsite browser
+ * @param onImagesClick opens the uploaded image browser
+ * @param onNotificationsClick opens the notification log
+ */
 @Composable
 fun AdminDashboardScreen(
     onBackClick: () -> Unit,
