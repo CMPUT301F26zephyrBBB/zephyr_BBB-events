@@ -7,6 +7,7 @@ import com.example.zephyr_bbb.owner.formatDateRange
 import com.example.zephyr_bbb.owner.formatLotteryDate
 import com.example.zephyr_bbb.owner.formatLotteryEndDate
 import com.example.zephyr_bbb.owner.formatStayRange
+import com.example.zephyr_bbb.owner.isLotteryDrawDue
 import com.example.zephyr_bbb.owner.lotteryStatusLabel
 import com.example.zephyr_bbb.owner.parseLotteryDate
 import com.example.zephyr_bbb.owner.parseLotteryEndDate
@@ -29,6 +30,7 @@ import java.util.TimeZone
  * The booking checks, including that booking must stay open after registration ends.
  * At least one winner is required.
  * A blank waitlist capacity means unlimited, and a set capacity must be positive.
+ * A draw is due only once registration has closed and the lottery is still open.
  *
  * At least one campsite is required, and several are allowed.
  */
@@ -230,6 +232,41 @@ class LotteryFormUtilsTest {
         val fields = validFields.copy(waitlistCapacity = "")
         assertNull(fields.validate(utc))
         assertNull(fields.waitlistCapacityOrNull())
+    }
+
+    /** A draw is due once registration has closed, and not before. */
+    @Test
+    fun drawIsDueOnlyAfterRegistrationCloses() {
+        assertFalse(    isLotteryDrawDue("open", registrationCloses, date("2026-10-14")))
+        assertTrue(isLotteryDrawDue("open", registrationCloses, registrationCloses))
+        assertTrue(isLotteryDrawDue("open", registrationCloses, date("2026-10-20")))
+    }
+    private val registrationOpens = date("2026-10-01")
+    private val registrationCloses = parseLotteryEndDate("2026-10-14", utc)!!
+
+    /** An open lottery is Active while registration is running, including its last day. */
+    @Test
+    fun openLotteryDuringRegistrationIsActive() {
+        assertEquals(
+            "Active",
+            lotteryStatusLabel("open", registrationOpens, registrationCloses, date("2026-10-14"))
+        )
+    }
+
+    /** A drawn lottery is shown as Completed. */
+    @Test
+    fun drawnLotteryIsCompleted() {
+        assertEquals(
+            "Completed",
+            lotteryStatusLabel("drawn", registrationOpens, registrationCloses, date("2026-10-15"))
+        )
+    }
+    /** A drawn or cancelled lottery, or one with no closing time, is not due for a draw. */
+    @Test
+    fun drawIsNotDueOnceDrawnOrCancelled() {
+        assertFalse(isLotteryDrawDue("drawn", registrationCloses, date("2026-10-20")))
+        assertFalse(isLotteryDrawDue("cancelled", registrationCloses, date("2026-10-20")))
+        assertFalse(isLotteryDrawDue("open", null, date("2026-10-20")))
     }
 
     @Test

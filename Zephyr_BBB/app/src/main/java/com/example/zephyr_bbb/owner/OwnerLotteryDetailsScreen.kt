@@ -34,7 +34,9 @@ import java.util.Locale
 /**
  * Composable function that creates the screen seen by the owner when they click View Lottery.
  * Loads the lottery and the names of its campsites.
- *
+ * If registration has ended and winners have not been drawn yet, it draws them automatically
+ * before showing the lottery. If registration ends while the screen is open, it waits for the
+ * deadline and then draws.
  * @param lotteryId The unique id of the lottery to show
  * @param onBackClick is invoked when the user clicks the back button
  * @param onEditLotteryClick is invoked with the lottery id when the user clicks Edit Lottery
@@ -67,6 +69,9 @@ fun OwnerLotteryDetailsScreen(
     }
     var errorMessage by remember {
         mutableStateOf<String?>(null)
+    }
+    var reloadKey by remember {
+        mutableIntStateOf(0)
     }
     LaunchedEffect(lotteryId, reloadKey) {
         val loadLottery = {
@@ -102,12 +107,33 @@ fun OwnerLotteryDetailsScreen(
                     lotteryRepository.getLottery(
                         lotteryId = lotteryId,
                         onSuccess = { loaded ->
-                            lottery = loaded
-                            now = Date()
-                            isLoading = false
+                            if (
+                                loaded != null &&
+                                isLotteryDrawDue(
+                                    loaded.status,
+                                    loaded.registrationClosesAt?.toDate(),
+                                    Date()
+                                )
+                            ) {
+                                // Registration is over, so draw the winners before showing it
+                                lotteryRepository.drawWinners(
+                                    lotteryId = lotteryId,
+                                    onSuccess = {
+                                        loadLottery()
+                                    },
+                                    onFailure = { error ->
+                                        errorMessage = "Automatic draw failed: ${error.message}"
+                                        loadLottery()
+                                    }
+                                )
+                            } else {
+                                lottery = loaded
+                                now = Date()
+                                isLoading = false
 
-                            if (loaded == null) {
-                                errorMessage = "This lottery could not be found."
+                                if (loaded == null) {
+                                    errorMessage = "This lottery could not be found."
+                                }
                             }
                 },
                 onFailure = { error ->
@@ -126,6 +152,18 @@ fun OwnerLotteryDetailsScreen(
             isLoading = false
         }
     }
+
+    LaunchedEffect(lottery) {
+        val current = lottery ?: return@LaunchedEffect
+        val closesAt = current.registrationClosesAt?.toDate()?.time ?: return@LaunchedEffect
+        val currentTime = System.currentTimeMillis()
+
+        if (current.status == "open" && closesAt > currentTime) {
+            delay(closesAt - currentTime + 1000)
+            reloadKey += 1
+        }
+    }
+
     LotteryDetailsContent(
         lottery = lottery,
         campsiteNames = campsiteNames,
@@ -142,6 +180,7 @@ fun OwnerLotteryDetailsScreen(
  * It shows the registration period.
  * It shows the booking period.
  * It shows the waitlist size and its capacity, or "unlimited".
+ * It explains that winners are drawn automatically, and shows the draw date once they have been drawn.
  *
  *  @param lottery The lottery to show, or null while it is loading
  *  @param campsiteNames Campsite names keyed by campsite ID
@@ -232,6 +271,23 @@ fun LotteryDetailsContent(
 
         Text("Waitlist size: ${lottery.entryCount}")
         Text("Waitlist capacity: ${lottery.waitlistCapacity?.toString() ?: "unlimited"}")
+
+        val drawText = when (lottery.status) {
+            "drawn" -> {
+                val drawnAt = lottery.drawnAt?.toDate()
+
+                if (drawnAt != null) {
+                    "Winners were drawn on ${
+                        SimpleDateFormat("MMM d, yyyy", Locale.US).format(drawnAt)
+                    }."
+                } else {
+                    "Winners have been drawn."
+                }
+            }
+            "cancelled" -> "This lottery was cancelled."
+            else -> "Winners drawn automatically when registration closes."
+        }
+        Text(drawText)
 
         if (canEditLottery(lottery.status)) {
             Button(

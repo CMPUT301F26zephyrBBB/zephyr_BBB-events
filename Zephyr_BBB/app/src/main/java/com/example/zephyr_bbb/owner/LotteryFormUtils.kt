@@ -275,6 +275,23 @@ fun lotteryStatusLabel(
     }
 }
 
+/**
+ * True when registration has ended but winners have not been drawn yet.
+ */
+fun isLotteryDrawDue(
+    status: String,
+    registrationClosesAt: Date?,
+    now: Date
+): Boolean {
+    return status == "open" &&
+            registrationClosesAt != null &&
+            now >= registrationClosesAt
+}
+
+/**
+ * True while the owner is still allowed to change the lottery.
+ * The repository rejects edits once the lottery has been drawn or cancelled.
+ */
 fun canEditLottery(status: String): Boolean {
     return status == "open"
 }

@@ -22,6 +22,7 @@ import org.junit.runner.RunWith
  * use Firebase.
  * The waitlist capacity is shown, or "unlimited" when there is none.
  * The details show the periods and settings, and Edit Lottery only appears while the lottery is open.
+ * The automatic draw is explained, and a drawn lottery shows Completed and its draw date.
  */
 @RunWith(AndroidJUnit4::class)
 class OwnerLotteryDetailsScreenTest {
@@ -118,12 +119,33 @@ class OwnerLotteryDetailsScreenTest {
         composeTestRule.onNodeWithText("Waitlist capacity: 30").performScrollTo().assertIsDisplayed()
     }
 
+    /** An open lottery explains that winners are drawn automatically. */
+    @Test
+    fun lotteryDetailsExplainsAutomaticDraw() {
+        showDetails(openLottery)
+        composeTestRule.onNodeWithText("Winners drawn automatically when registration closes.")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
     /** Edit Lottery reports a click while the lottery is open. */
     @Test
     fun lotteryDetailsEditWorksWhileOpen() {
         showDetails(openLottery)
         composeTestRule.onNodeWithText("Edit Lottery").performScrollTo().performClick()
         assertTrue(editClicked)
+    }
+
+    /** A drawn lottery shows Completed and its draw date, and has no Edit Lottery button. */
+    @Test
+    fun drawnLotteryShowsCompletedAndHidesEdit() {
+        showDetails(drawnLottery, nowText = "2026-10-17")
+
+        composeTestRule.onNodeWithText("Status: Completed").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Winners were drawn on Oct 15, 2026.")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText("Edit Lottery").assertDoesNotExist()
     }
 
     /** A cancelled lottery shows its status and has no Edit Lottery button. */
