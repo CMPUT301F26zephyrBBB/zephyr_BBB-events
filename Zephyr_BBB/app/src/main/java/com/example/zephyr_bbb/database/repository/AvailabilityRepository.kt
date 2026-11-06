@@ -11,7 +11,6 @@ import java.util.TimeZone
 
 /**
  * Reads and updates nightly campsite availability.
- *
  * Path: campsites/{campsiteId}/availability/{YYYY-MM-DD}
  * Missing dates are unavailable.
  * ReservationRepository handles reserving nights after a lottery win.

@@ -23,10 +23,8 @@ class ImageRepository {
 
     /**
      * Uploads an image and links it to a profile or campsite.
-     *
      * For profiles, targetId is the user's ID.
      * For campsites, targetId is the campsite's ID.
-     *
      * Returns the image metadata document ID.
      */
     fun uploadImage(
@@ -134,7 +132,6 @@ class ImageRepository {
      * Deletes the stored image and its metadata.
      * Clears the profile/campsite reference if it still points
      * to this image.
-     *
      * AdminRepository can call this for image moderation.
      */
     fun deleteImage(
