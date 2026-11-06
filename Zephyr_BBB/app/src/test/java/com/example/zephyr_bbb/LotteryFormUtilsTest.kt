@@ -48,6 +48,13 @@ class LotteryFormUtilsTest {
         title = "October Foothills",
         stayStart = "2026-10-18",
         stayEnd = "2026-11-01",
+        campsiteIds = setOf("pine_creek_a12", "willow_bend_b04"),
+        registrationStart = "2026-10-01",
+        registrationEnd = "2026-10-14",
+        bookingStart = "2026-10-18",
+        bookingEnd = "2026-10-31",
+        winnerCount = "8",
+        waitlistCapacity = "",
     )
     /** A valid YYYY-MM-DD date is read and formats back to the same text. */
     @Test
