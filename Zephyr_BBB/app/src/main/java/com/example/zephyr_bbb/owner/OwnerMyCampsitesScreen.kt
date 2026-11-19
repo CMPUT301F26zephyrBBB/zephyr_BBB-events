@@ -46,7 +46,8 @@ import kotlin.collections.emptyList
 fun OwnerMyCampsitesScreen(
     onBackClick: () -> Unit,
     onAddCampsiteClick: () -> Unit,
-    onCampsiteClick: (Campsite) -> Unit
+    onCampsiteClick: (Campsite) -> Unit,
+    onCreateLotteryClick: (Campsite) -> Unit = {}
 ) {
     val campsiteRepository = remember {
         CampsiteRepository()
@@ -120,9 +121,19 @@ fun OwnerMyCampsitesScreen(
             ) {
                 Text("Edit Campsite")
             }
+            Button(
+                onClick = {
+                    selectedCampsite = null
+                    onCreateLotteryClick(campsite)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Create Lottery")
+            }
         }
         return
     }
+
 
     Column(
         modifier = Modifier

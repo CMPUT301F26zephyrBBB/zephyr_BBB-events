@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,6 +27,13 @@ import com.example.zephyr_bbb.database.repository.UserRepository
 import androidx.compose.foundation.layout.statusBarsPadding
 
 // admin screen for browsing and removing uploaded images
+// outstanding: shows image details as text, thumbnails need storage uploads first
+
+/**
+ * Lets an admin browse all uploaded images and remove one after confirming.
+ *
+ * @param onBackClick called when the admin presses back
+ */
 @Composable
 fun AdminImageScreen(
     onBackClick: () -> Unit
@@ -45,6 +54,10 @@ fun AdminImageScreen(
 
     var errorMessage by remember {
         mutableStateOf<String?>(null)
+    }
+
+    var imageToRemove by remember {
+        mutableStateOf<ImageRecord?>(null)
     }
 
     // load all uploaded image records
@@ -73,6 +86,59 @@ fun AdminImageScreen(
             onFailure = { error ->
                 errorMessage = error.message
                 isLoading = false
+            }
+        )
+    }
+
+    // confirmation before removing an image
+    imageToRemove?.let { image ->
+
+        AlertDialog(
+            onDismissRequest = {
+                imageToRemove = null
+            },
+            title = {
+                Text("Remove Image?")
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Uploaded by: ${image.uploaderId}")
+                    Text("Removing this image will delete it from the database.")
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        imageToRemove = null
+                        isLoading = true
+                        errorMessage = null
+
+                        // remove image record, then refresh the list
+                        adminRepository.removeImage(
+                            imageId = image.id,
+                            onSuccess = {
+                                loadImages()
+                            },
+                            onFailure = { error ->
+                                errorMessage = error.message
+                                isLoading = false
+                            }
+                        )
+                    }
+                ) {
+                    Text("Remove")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        imageToRemove = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
             }
         )
     }
@@ -124,20 +190,8 @@ fun AdminImageScreen(
 
                     Button(
                         onClick = {
-                            isLoading = true
-                            errorMessage = null
-
-                            // remove image record, then refresh the list
-                            adminRepository.removeImage(
-                                imageId = image.id,
-                                onSuccess = {
-                                    loadImages()
-                                },
-                                onFailure = { error ->
-                                    errorMessage = error.message
-                                    isLoading = false
-                                }
-                            )
+                            // ask before removing
+                            imageToRemove = image
                         }
                     ) {
                         Text("Remove Image")

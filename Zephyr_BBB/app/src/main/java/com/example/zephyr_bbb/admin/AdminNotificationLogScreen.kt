@@ -25,6 +25,13 @@ import com.example.zephyr_bbb.database.repository.AdminRepository
 import com.example.zephyr_bbb.database.repository.UserRepository
 
 // admin screen for reviewing notification logs
+// outstanding: no search or filters on the log yet
+
+/**
+ * Lets an admin review every notification sent in the app, newest first.
+ *
+ * @param onBackClick called when the admin presses back
+ */
 @Composable
 fun AdminNotificationLogScreen(
     onBackClick: () -> Unit

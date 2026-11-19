@@ -27,11 +27,13 @@ import com.example.zephyr_bbb.database.repository.UserRepository
  *
  * @param onAdminClick is invoked when the user clicks the admin dashboard button
  * @param onOwnerClick is invoked when the user clicks the owner dashboard button
+ * @param onScanClick is invoked when the user clicks the button to scan a campsite QR code
  */
 @Composable
 fun HomeScreen(
     onOwnerClick: () -> Unit,
     onAdminClick: () -> Unit,
+    onScanClick: () -> Unit = {},
 ) {
 
     var isOwner by remember {
@@ -67,6 +69,14 @@ fun HomeScreen(
         Text("Home")
 
         Text("Welcome to Zephyr")
+
+        // Scanning a campsite's QR code opens its details (US 01.12.01)
+        Button(
+            onClick = onScanClick,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Scan Campsite QR Code")
+        }
 
         // only admins can see the admin dashboard button
         if (isAdmin) {

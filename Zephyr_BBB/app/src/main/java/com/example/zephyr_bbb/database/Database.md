@@ -35,7 +35,7 @@ Dates use `YYYY-MM-DD`, with checkout excluded. Missing availability dates count
 
 ## LotteryRepository
 
-Automatic lottery scheduling is not implemented in this repository. drawWinners must be called after registration closes. It doesn't automatically run when the deadline passes.
+There is no server-side scheduler. Winners are drawn automatically by the owner's app: `OwnerMyLotteriesScreen` and `OwnerLotteryDetailsScreen` call drawDueLotteries / drawWinners when they load and again when a registration deadline passes while they are open. A lottery whose registration has closed stays undrawn until its owner opens one of those screens.
 
 | Function                      | Parameters         | Use                                                                     |
 |-------------------------------|--------------------|-------------------------------------------------------------------------|
@@ -50,7 +50,8 @@ Automatic lottery scheduling is not implemented in this repository. drawWinners 
 | leaveWaitlist                 | lotteryId: String  | Leave an undrawn lottery's waiting list.                                |
 | drawWinners                   | lotteryId: String  | Draw after registration closes; passes winner user IDs to onSuccess.    |
 | decline                       | lotteryId: String  | Decline an unused winning opportunity.                                  |
-
+| drawDueLotteries              | None               | Draw all of the owner's undrawn lotteries whose registration has closed; passes drawn lottery IDs to onSuccess. | <!-- [US 02.05.01] -->
+| decline                       | lotteryId: String  | Decline an unused winning opportunity.                                  |
 ## ReservationRepository
 
 | Function             | Parameters                                                                                                                 | Use                                                                                                                                                                                                                                                              |

@@ -11,13 +11,13 @@ import com.google.firebase.firestore.Query
 
 /**
  * Handles lottery creation, editing, waitlists, results and declines.
- *
  * Lotteries: lotteries/{lotteryId}
  * Entries: lotteries/{lotteryId}/entries/{entrantId}
- *
  * Call after sign-in. Dates supplied by screens use YYYY-MM-DD.
  * Automatic scheduling is handled separately.
  * Draw transactions are intended for small classroom waitlists.
+ * There is no server-side scheduler: drawDueLotteries draws an owner's lotteries from the app
+ * once their registration period has ended.
  */
 class LotteryRepository {
 
@@ -489,7 +489,73 @@ class LotteryRepository {
             }
             .addOnFailureListener { onFailure(it) }
     }
+    /**
+     * Draws every one of the current owner's lotteries whose registration has closed
+     * but which has not been drawn yet.
+     *
+     * Screens call this when they load so winners are drawn without the owner pressing anything.
+     * Passes the IDs of the lotteries drawn by this call to onSuccess.
+     * If any draw fails, the others still run and the first error is passed to onFailure.
+     */
+    fun drawDueLotteries(
+        onSuccess: (List<String>) -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        getMyLotteries(
+            onSuccess = { lotteries ->
+                val now = Timestamp.now()
 
+                val dueLotteries = lotteries.filter {
+                    it.status == "open" &&
+                            it.registrationClosesAt != null &&
+                            now >= it.registrationClosesAt!!
+                }
+
+                if (dueLotteries.isEmpty()) {
+                    onSuccess(emptyList())
+                    return@getMyLotteries
+                }
+
+                val drawnIds = mutableListOf<String>()
+                var remaining = dueLotteries.size
+                var firstError: Exception? = null
+
+                // Firebase listeners run on the main thread, so these counters are not shared
+                // between threads.
+                /** Counts one lottery as finished, and reports the result once all of them are. */
+                fun finishOne() {
+                    remaining -= 1
+
+                    if (remaining == 0) {
+                        val error = firstError
+
+                        if (error != null) {
+                            onFailure(error)
+                        } else {
+                            onSuccess(drawnIds)
+                        }
+                    }
+                }
+
+                dueLotteries.forEach { lottery ->
+                    drawWinners(
+                        lotteryId = lottery.id,
+                        onSuccess = {
+                            drawnIds.add(lottery.id)
+                            finishOne()
+                        },
+                        onFailure = { error ->
+                            if (firstError == null) {
+                                firstError = error
+                            }
+                            finishOne()
+                        }
+                    )
+                }
+            },
+            onFailure = onFailure
+        )
+    }
     /**
      * Declines an unused winning reservation opportunity.
      */
