@@ -52,6 +52,39 @@ Some also came from the GitHub url listed on the webpage which is just the big d
 file.
 GitHub URL: https://github.com/android/snippets/blob/main/compose/snippets/src/main/java/com/example/compose/snippets/components/Navigation.kt
 
-Liscense -  https://creativecommons.org/licenses/by/2.5/
+License -  https://creativecommons.org/licenses/by/2.5/
 Date Published - 2026-10-28
 
+
+Android Developers
+Knowledge came of imagePickerLauncher and rememberLauncherForActivityResult came from Android Studio Developers
+Used their code as basis for my button to get images.
+URL: https://developer.android.com/develop/ui/compose/libraries
+
+License -  https://creativecommons.org/licenses/by/2.5/
+Date Published (Last Updated) - 2026-11-10
+
+
+Android Developers
+Knowledge of how to use drop down menus came from Android Developers
+URL: https://developer.android.com/develop/ui/compose/components/menu
+
+License -  https://creativecommons.org/licenses/by/2.5/
+Date Published - 2026-11-18
+
+Android Developers
+Knowledge of Timestamp and other related functions came from Android Developers
+URL:https://developer.android.com/reference/java/sql/Timestamp
+
+License -  https://creativecommons.org/licenses/by/2.5/
+Date Published - 2026-08-03
+
+Stack Overflow
+Used in OwnerMyReservationsScreen.kt
+Used a modified version of Jef Janssen's code to make the proper timestamp format. I did modify his code thought to suit my needs but the basis of the code came from there.
+
+URL - https://stackoverflow.com/questions/71149715/timestamp-in-android-studio-using-kotlin
+URL - https://stackoverflow.com/a/71158005
+
+License - https://creativecommons.org/licenses/by-sa/4.0/legalcode.en
+Date Published - February 17, 2022 by Jef Janssen
