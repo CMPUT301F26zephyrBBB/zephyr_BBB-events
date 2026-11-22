@@ -10,7 +10,7 @@ import com.example.zephyr_bbb.entrant.CAMERA_PERMISSION_NEEDED
 import com.example.zephyr_bbb.entrant.NOT_A_CAMPSITE_CODE
 import com.example.zephyr_bbb.entrant.QrScanContent
 import com.example.zephyr_bbb.entrant.decodeQrText
-import com.example.zephyr_bbb.ui.theme.generateQRCode
+//import com.example.zephyr_bbb.ui.theme.generateQRCode
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertTrue
 import org.junit.Rule

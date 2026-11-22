@@ -204,6 +204,8 @@ fun OwnerAddCampsiteScreen(
             label = {Text("Enter Campsite Cancellation Policy")},
             modifier = Modifier.fillMaxWidth()
         )
+        // A button to get an Image From
+        // Knowledge came of imagePickerLauncher and rememberLauncherForActivityResult cited in SethCitations.txt
         Button(
             onClick = {imagePickerLauncher.launch("image/*")},
             modifier = Modifier.fillMaxWidth()
