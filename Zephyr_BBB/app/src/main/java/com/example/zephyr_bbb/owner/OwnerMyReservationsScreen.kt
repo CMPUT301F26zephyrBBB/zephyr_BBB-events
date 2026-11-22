@@ -1,5 +1,6 @@
 package com.example.zephyr_bbb.owner
 
+import android.app.ProgressDialog.show
 import android.text.TextUtils.split
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,7 @@ import java.util.Date
 @Composable
 fun OwnerMyReservationsScreen(
     onBackClick: () -> Unit,
+    onMessageClick: (String) -> Unit
 ) {
     val reservationRepository = remember {
         ReservationRepository()
@@ -90,6 +92,9 @@ fun OwnerMyReservationsScreen(
     var showReservations by remember{
         mutableStateOf(true)
     }
+    var showSelectedReservation by remember{
+        mutableStateOf(false)
+    }
 
     LaunchedEffect(Unit) {
         reservationRepository.getOwnerReservations(
@@ -105,7 +110,10 @@ fun OwnerMyReservationsScreen(
     }
 
     // Shows a screen when you click view details on a reservation
-    if(selectedReservation != null){
+    if(selectedReservation != null) {
+        showSelectedReservation = true
+    }
+    if(showSelectedReservation == true){
         showReservations = false
         val reservation = selectedReservation!!
         // Used to get info about the campsite
@@ -148,6 +156,7 @@ fun OwnerMyReservationsScreen(
             // Back Button
             Button(
                 onClick = {
+                    showSelectedReservation = false
                     selectedReservation = null
                     showReservations = true
                 }
@@ -241,6 +250,14 @@ fun OwnerMyReservationsScreen(
                     Text("Reject Reservation")
                 }
             }
+            Button(
+                onClick = {
+                    onMessageClick(reservation.id)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ){
+                Text("Message Entrant")
+            }
         }
         // Shows a notification if you press reject reservation
         if (showRejectionDialog == true){
@@ -260,6 +277,7 @@ fun OwnerMyReservationsScreen(
                                     showRejectionDialog = false
                                     selectedReservation = null
                                     showReservations = true
+                                    showSelectedReservation = false
                                 },
                                 onFailure = {errorMessage = it.message}
                             )

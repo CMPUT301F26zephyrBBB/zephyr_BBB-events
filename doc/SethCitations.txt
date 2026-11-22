@@ -72,12 +72,14 @@ URL: https://developer.android.com/develop/ui/compose/components/menu
 License -  https://creativecommons.org/licenses/by/2.5/
 Date Published - 2026-11-18
 
+
 Android Developers
 Knowledge of Timestamp and other related functions came from Android Developers
 URL:https://developer.android.com/reference/java/sql/Timestamp
 
 License -  https://creativecommons.org/licenses/by/2.5/
 Date Published - 2026-08-03
+
 
 Stack Overflow
 Used in OwnerMyReservationsScreen.kt
@@ -88,3 +90,17 @@ URL - https://stackoverflow.com/a/71158005
 
 License - https://creativecommons.org/licenses/by-sa/4.0/legalcode.en
 Date Published - February 17, 2022 by Jef Janssen
+
+
+Android Developers
+Knowledge about how DisposableEffect works came form Android Developers
+Used to figure out how to make messages sync whenever someone sends one and not only when you send a message
+
+URL - https://developer.android.com/develop/ui/compose/side-effects
+
+License -  https://creativecommons.org/licenses/by/2.5/
+Date Published - 2026-11-10
+
+Google Gemini
+Idea to use DisposableEffect came from Google Gemini which I then did some looking into DisposableEffect by going to the Android Developers Website linked above. Code that Google Gemini output was used as a basis but modified quite a bit to fit my use case. Used the following input "how do i get my messaging feature in my app to update automatically whenever a message is sent. Using android studio and kotlin and firebase and LaunchedEffect" 
+Date 2026-11-22
