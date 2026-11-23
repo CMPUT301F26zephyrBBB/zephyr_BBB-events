@@ -30,6 +30,7 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Composable function that creates the screen seen by the owner when they click View Lottery.
@@ -104,9 +105,22 @@ fun OwnerLotteryDetailsScreen(
                             errorMessage = error.message
                         }
                     )
+
                     lotteryRepository.getLottery(
                         lotteryId = lotteryId,
                         onSuccess = { loaded ->
+                            // Show the lottery straight away. The automatic draw below runs
+                            // alongside it and must never hold the screen up.
+                            lottery = loaded
+                            now = Date()
+                            isLoading = false
+
+                            if (loaded == null) {
+                                errorMessage = "This lottery could not be found."
+                            }
+
+                            // If registration has ended, draw the winners, then
+                            // reload so the result shows
                             if (
                                 loaded != null &&
                                 isLotteryDrawDue(
@@ -115,7 +129,6 @@ fun OwnerLotteryDetailsScreen(
                                     Date()
                                 )
                             ) {
-                                // Registration is over, so draw the winners before showing it
                                 lotteryRepository.drawWinners(
                                     lotteryId = lotteryId,
                                     onSuccess = {
@@ -123,29 +136,20 @@ fun OwnerLotteryDetailsScreen(
                                     },
                                     onFailure = { error ->
                                         errorMessage = "Automatic draw failed: ${error.message}"
-                                        loadLottery()
                                     }
                                 )
-                            } else {
-                                lottery = loaded
-                                now = Date()
-                                isLoading = false
-
-                                if (loaded == null) {
-                                    errorMessage = "This lottery could not be found."
-                                }
                             }
+                        },
+                        onFailure = { error ->
+                            errorMessage = error.message
+                            isLoading = false
+                        }
+                    )
                 },
                 onFailure = { error ->
                     errorMessage = error.message
                     isLoading = false
                 }
-                )
-            },
-            onFailure = { error ->
-                errorMessage = error.message
-                isLoading = false
-            }
             )
         } catch (e: Exception) {
             errorMessage = e.message
@@ -159,7 +163,7 @@ fun OwnerLotteryDetailsScreen(
         val currentTime = System.currentTimeMillis()
 
         if (current.status == "open" && closesAt > currentTime) {
-            delay(closesAt - currentTime + 1000)
+            delay((closesAt - currentTime + 1000).milliseconds)
             reloadKey += 1
         }
     }

@@ -27,7 +27,6 @@ import com.example.zephyr_bbb.database.model.Lottery
 import com.example.zephyr_bbb.database.repository.CampsiteRepository
 import com.example.zephyr_bbb.database.repository.LotteryRepository
 import com.example.zephyr_bbb.database.repository.UserRepository
-import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -99,6 +98,22 @@ fun OwnerMyLotteriesScreen(
                             errorMessage = error.message
                         }
                     )
+
+                    // Show the list straight away. The automatic draw below runs alongside it and
+                    // must never hold the list up.
+                    loadLotteries()
+
+                    lotteryRepository.drawDueLotteries(
+                        onSuccess = { drawnIds ->
+                            if (drawnIds.isNotEmpty()) {
+                                loadLotteries()
+                            }
+                        },
+                        onFailure = { error ->
+                            errorMessage = "Automatic draw failed: ${error.message}"
+                        }
+                    )
+                    // [/C08]
                 },
                 onFailure = { error ->
                     errorMessage = error.message
