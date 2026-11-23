@@ -141,6 +141,7 @@ fun OwnerMyLotteriesScreen(
 /**Composable function that shows the list of an owner's lotteries.
 * Each lottery shows its name, campsites and status, with a View Lottery button.
 * A Create Lottery button sits at the bottom of the screen.
+* Each lottery also shows its registration period.
 * @param lotteries The lotteries to list
 * @param campsiteNames Campsite names keyed by campsite ID
 * @param now The current time, used to work out each lottery's status
@@ -218,6 +219,14 @@ fun OwnerMyLotteriesContent(
                     if (names.isNotEmpty()) {
                         Text(names.joinToString(", "))
                     }
+                    Text(
+                        "Registration: ${
+                            formatClosingRange(
+                                lottery.registrationOpensAt?.toDate(),
+                                lottery.registrationClosesAt?.toDate()
+                            )
+                        }"
+                    )
                     Text(
                         "Status: ${
                             lotteryStatusLabel(

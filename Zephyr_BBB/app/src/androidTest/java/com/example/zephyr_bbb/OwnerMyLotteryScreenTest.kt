@@ -1,19 +1,17 @@
 package com.example.zephyr_bbb
 
-import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.zephyr_bbb.database.model.Lottery
 import com.example.zephyr_bbb.owner.OwnerMyLotteriesContent
-import com.example.zephyr_bbb.owner.OwnerMyLotteriesScreen
 import com.example.zephyr_bbb.owner.parseLotteryDate
-
+import com.example.zephyr_bbb.owner.parseLotteryEndDate
 import com.google.firebase.Timestamp
-import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertTrue
+import androidx.compose.ui.test.onAllNodesWithText
+import junit.framework.TestCase.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,6 +22,8 @@ class OwnerMyLotteriesScreenTest {
     val composeTestRule = createComposeRule()
 
     private fun start(text: String) = Timestamp(parseLotteryDate(text)!!)
+    // Turns an inclusive YYYY-MM-DD end day into the Timestamp it closes at
+    private fun end(text: String) = Timestamp(parseLotteryEndDate(text)!!)
 
 
     private val campsiteNames = mapOf(
@@ -41,6 +41,7 @@ class OwnerMyLotteriesScreenTest {
             title = "October Foothills",
             campsiteIds = listOf("c1", "c2"),
             registrationOpensAt = start("2026-10-01"),
+            registrationClosesAt = end("2026-10-14"),
             status = "drawn"
         ),
         Lottery(
@@ -48,6 +49,7 @@ class OwnerMyLotteriesScreenTest {
             title = "Autumn Campout",
             campsiteIds = listOf("c3"),
             registrationOpensAt = start("2026-10-15"),
+            registrationClosesAt = end("2026-10-19"),
             status = "open"
         ),
         Lottery(
@@ -55,6 +57,7 @@ class OwnerMyLotteriesScreenTest {
             title = "Late October Weekends",
             campsiteIds = listOf("c1"),
             registrationOpensAt = start("2026-10-20"),
+            registrationClosesAt = end("2026-10-23"),
             status = "open"
         )
     )
@@ -104,5 +107,21 @@ class OwnerMyLotteriesScreenTest {
         showList()
         composeTestRule.onNodeWithText("Create Lottery").performClick()
         assertTrue(createClicked)
+    }
+
+    /** View Lottery passes the lottery that was clicked. */
+    @Test
+    fun myLotteriesViewLotteryPassesLottery() {
+        showList()
+        composeTestRule.onAllNodesWithText("View Lottery")[1].performClick()
+        assertEquals("l2", clickedLottery?.id)
+    }
+
+    /** The back button reports a click. */
+    @Test
+    fun myLotteriesBackWorks() {
+        showList()
+        composeTestRule.onNodeWithText("<").performClick()
+        assertTrue(backClicked)
     }
 }
