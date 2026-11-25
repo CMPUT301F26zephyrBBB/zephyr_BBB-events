@@ -52,6 +52,7 @@ import com.example.zephyr_bbb.owner.OwnerMyReservationsScreen
 import com.example.zephyr_bbb.owner.OwnerNotificationsScreen
 import com.example.zephyr_bbb.owner.OwnerEditLotteryScreen
 import com.example.zephyr_bbb.owner.OwnerLotteryDetailsScreen
+import com.example.zephyr_bbb.owner.OwnerMessagingScreen
 
 
 /**
@@ -396,6 +397,19 @@ fun CustomNavigationBar(
 
             composable("owner_reservations") {
                 OwnerMyReservationsScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onMessageClick = {reservationId->
+                        navController.navigate("owner_messaging/$reservationId")
+                    }
+                )
+            }
+
+            composable("owner_messaging/{reservationId}"){backStackEntry->
+                val reservationId = backStackEntry.arguments?.getString("reservationId") ?: ""
+                OwnerMessagingScreen(
+                    reservationId = reservationId,
                     onBackClick = {
                         navController.popBackStack()
                     }

@@ -1,5 +1,7 @@
 package com.example.zephyr_bbb.owner
 
+import android.app.ProgressDialog.show
+import android.text.TextUtils.split
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,12 +34,14 @@ import com.example.zephyr_bbb.database.model.Reservation
 import com.example.zephyr_bbb.database.repository.CampsiteRepository
 import com.example.zephyr_bbb.database.repository.ReservationRepository
 import com.example.zephyr_bbb.database.repository.UserRepository
+import com.google.common.math.LinearTransformation.horizontal
 import java.text.SimpleDateFormat
 import java.util.Date
 
 @Composable
 fun OwnerMyReservationsScreen(
     onBackClick: () -> Unit,
+    onMessageClick: (String) -> Unit
 ) {
     val reservationRepository = remember {
         ReservationRepository()
@@ -82,8 +86,15 @@ fun OwnerMyReservationsScreen(
     var entrantName by remember{
         mutableStateOf("")
     }
-
-
+    var showDates by remember{
+        mutableStateOf(false)
+    }
+    var showReservations by remember{
+        mutableStateOf(true)
+    }
+    var showSelectedReservation by remember{
+        mutableStateOf(false)
+    }
 
     LaunchedEffect(Unit) {
         reservationRepository.getOwnerReservations(
@@ -99,12 +110,15 @@ fun OwnerMyReservationsScreen(
     }
 
     // Shows a screen when you click view details on a reservation
-    if(selectedReservation != null){
+    if(selectedReservation != null) {
+        showSelectedReservation = true
+    }
+    if(showSelectedReservation == true){
+        showReservations = false
         val reservation = selectedReservation!!
-        val campsiteId = reservation.campsiteId
         // Used to get info about the campsite
         campsiteRepository.getCampsite(
-            campsiteId = campsiteId,
+            campsiteId = reservation.campsiteId,
             onSuccess = {campsite->
                 if (campsite != null){
                     campsiteName = campsite.name
@@ -142,13 +156,15 @@ fun OwnerMyReservationsScreen(
             // Back Button
             Button(
                 onClick = {
+                    showSelectedReservation = false
                     selectedReservation = null
+                    showReservations = true
                 }
             ) {
                 Text("<")
             }
 
-            Text("${reservation.id}")
+            Text(reservation.id)
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "Campsite",
@@ -234,6 +250,14 @@ fun OwnerMyReservationsScreen(
                     Text("Reject Reservation")
                 }
             }
+            Button(
+                onClick = {
+                    onMessageClick(reservation.id)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ){
+                Text("Message Entrant")
+            }
         }
         // Shows a notification if you press reject reservation
         if (showRejectionDialog == true){
@@ -252,6 +276,8 @@ fun OwnerMyReservationsScreen(
                                 onSuccess = {
                                     showRejectionDialog = false
                                     selectedReservation = null
+                                    showReservations = true
+                                    showSelectedReservation = false
                                 },
                                 onFailure = {errorMessage = it.message}
                             )
@@ -272,153 +298,258 @@ fun OwnerMyReservationsScreen(
             )
         }
     }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(16.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth()
+    // Shows Booked Dates for All campgrounds
+    if (showDates == true){
+        showReservations = false
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(16.dp)
         ) {
-            Button(
-                onClick = onBackClick
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("<")
+                Button(
+                    onClick = {
+                        showDates = false
+                        showReservations = true
+                    },
+                    modifier = Modifier.padding(horizontal = 10.dp)
+                ) {
+                    Text("<")
+                }
+                Text("Booked Dates")
+            }
+            if (reservations.isEmpty()) {
+                Text("No Current Booked Dates")
             }
 
-            Text("Reservations")
-            // Creates a dropdown menu for selecting what type of reservation you want to see
-            // Knowledge of DropdownMenu came from Android Developers - Cited in SethCitations.txt
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ){
-                DropdownMenuItem(
-                    text = {Text("Active Reservations")},
-                    onClick = {
-                        typeOfReservation = "Active"
-                        expanded = false
-                    }
-                )
-                DropdownMenuItem(
-                    text = {Text("Past Reservations")},
-                    onClick = {
-                        typeOfReservation = "Past"
-                        expanded = false
-                    }
-                )
-                DropdownMenuItem(
-                    text = {Text("Cancelled Reservations")},
-                    onClick = {
-                        typeOfReservation = "Cancelled"
-                        expanded = false
-                    }
-                )
+            LazyColumn {
+                items(reservations) { reservation ->
+                    val checkInDate = (reservation.checkInDate).split("-")
+                    val checkOutDate = (reservation.checkOutDate).split("-")
+                    var entrantName1 = ""
+                    var campsiteName1 = ""
+                    userRepository.getUser(
+                        userId = reservation.entrantId,
+                        onSuccess = { user ->
+                            if (user != null) {
+                                entrantName1 = user.name
+                            }
+                            isLoading = false
+                        },
+                        onFailure = { error ->
+                            errorMessage = error.message
+                            isLoading = false
+                        }
+                    )
+                    campsiteRepository.getCampsite(
+                        campsiteId = reservation.campsiteId,
+                        onSuccess = { campsite ->
+                            if (campsite != null) {
+                                campsiteName1 = campsite.name
+                            }
+                            isLoading = false
+                        },
+                        onFailure = { error ->
+                            errorMessage = error.message
+                            isLoading = false
+                        }
+                    )
+                    val checkInMonth = checkInDate[1]
+                    val checkOutMonth = checkOutDate[1]
+                    if (checkInMonth != checkOutMonth) {
+                        Text(
+                            "$checkInMonth ${checkInDate[2]},${checkInDate[0]} - $checkOutMonth ${checkOutDate[2]},${checkOutDate[0]}" +
+                                    " - $entrantName1 - $campsiteName1"
+                        )
+                    } else {
+                        Text("$checkInMonth ${checkInDate[2]} - ${checkOutDate[2]},${checkInDate[0]} - $entrantName1 - $campsiteName1")
 
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+                }
             }
         }
-        // Button that makes that pulls up the menu
-        Button(
-            onClick = {expanded = !expanded},
-            modifier = Modifier.fillMaxWidth()
-        ){
-            if(typeOfReservation == "") {
-                Text("Type of Reservation")
-            }
-            if(typeOfReservation == "Active") {
-                Text("Active Reservations")
-            }
-            if(typeOfReservation == "Past") {
-                Text("Past Reservations")
-            }
-            if(typeOfReservation == "Cancelled") {
-                Text("Cancelled Reservations")
-            }
-        }
-        // Puts all the reservation items on the screen
-        LazyColumn {
-            items(reservations) { reservation ->
-                // Knowledge of time stamp came from Android Developers and Stack Overflow
-                // Cited in SethCitations.txt
-                val datePast = checkOutDateChecker(reservation.checkOutDate, timeStamp )
-                // If reservation is rejected or cancelled
-                if ((reservation.status == "rejected" || reservation.status == "cancelled") && typeOfReservation == "Cancelled") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(reservation.id)
-                        Text(reservation.entrantId)
-                        Text("${reservation.checkInDate}-${reservation.checkOutDate}")
-                        Button(
-                            onClick = {
-                                selectedReservation = reservation },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("View Details")
-                        }
-                        HorizontalDivider(
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                    }
+    }
+    if(showReservations == true) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Button(
+                    onClick = onBackClick
+                ) {
+                    Text("<")
                 }
-                // If date has not yet passed
-                if (reservation.status == "confirmed" && datePast == true && typeOfReservation == "Active") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(reservation.id)
-                        Text(reservation.entrantId)
-                        Text("${reservation.checkInDate}-${reservation.checkOutDate}")
-                        Button(
-                            onClick = {
-                                selectedReservation = reservation },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("View Details")
+
+                Text("Reservations")
+                // Creates a dropdown menu for selecting what type of reservation you want to see
+                // Knowledge of DropdownMenu came from Android Developers - Cited in SethCitations.txt
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Active Reservations") },
+                        onClick = {
+                            typeOfReservation = "Active"
+                            expanded = false
                         }
-                        HorizontalDivider(
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                    }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Past Reservations") },
+                        onClick = {
+                            typeOfReservation = "Past"
+                            expanded = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Cancelled Reservations") },
+                        onClick = {
+                            typeOfReservation = "Cancelled"
+                            expanded = false
+                        }
+                    )
+
                 }
-                // If date has past
-                if (reservation.status == "confirmed" && datePast == false && typeOfReservation == "Past") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(reservation.id)
-                        Text(reservation.entrantId)
-                        Text("${reservation.checkInDate}-${reservation.checkOutDate}")
-                        Button(
-                            onClick = {
-                                selectedReservation = reservation },
-                            modifier = Modifier.fillMaxWidth()
+            }
+            // Button that makes that pulls up the menu
+            Button(
+                onClick = { expanded = !expanded },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (typeOfReservation == "") {
+                    Text("Type of Reservation")
+                }
+                if (typeOfReservation == "Active") {
+                    Text("Active Reservations")
+                }
+                if (typeOfReservation == "Past") {
+                    Text("Past Reservations")
+                }
+                if (typeOfReservation == "Cancelled") {
+                    Text("Cancelled Reservations")
+                }
+            }
+
+            // Puts all the reservation items on the screen
+            LazyColumn(
+                modifier = Modifier.weight(1f)
+            ) {
+                items(reservations) { reservation ->
+                    // Knowledge of time stamp came from Android Developers and Stack Overflow
+                    // Cited in SethCitations.txt
+                    val datePast = checkOutDateChecker(reservation.checkOutDate, timeStamp)
+                    Text(reservation.status)
+                    // If reservation is rejected or cancelled
+                    if ((reservation.status == "rejected" || reservation.status == "cancelled") && typeOfReservation == "Cancelled") {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text("View Details")
+                            Text(reservation.id)
+                            Text(reservation.entrantId)
+                            Text("${reservation.checkInDate}-${reservation.checkOutDate}")
+                            Button(
+                                onClick = {
+                                    selectedReservation = reservation
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("View Details")
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
                         }
-                        HorizontalDivider(
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
                     }
-                } else Text("No Reservations")
+                    // If date has not yet passed
+                    if (reservation.status == "confirmed" && datePast == true && typeOfReservation == "Active") {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(reservation.id)
+                            Text(reservation.entrantId)
+                            Text("${reservation.checkInDate}-${reservation.checkOutDate}")
+                            Button(
+                                onClick = {
+                                    selectedReservation = reservation
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("View Details")
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        }
+                    }
+                    // If date has past
+                    if (reservation.status == "confirmed" && datePast == false && typeOfReservation == "Past") {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(reservation.id)
+                            Text(reservation.entrantId)
+                            Text("${reservation.checkInDate}-${reservation.checkOutDate}")
+                            Button(
+                                onClick = {
+                                    selectedReservation = reservation
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("View Details")
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        }
+                    } else Text("No Reservations")
+                }
+            }
+            if (reservations.isEmpty()) {
+                if (typeOfReservation == "Active") {
+                    Text("No Active Reservations")
+                }
+                if (typeOfReservation == "Past") {
+                    Text("No Past Reservations")
+                }
+                if (typeOfReservation == "Cancelled") {
+                    Text("No Cancelled Reservations")
+                }
+            }
+            Button(
+                onClick = {
+                    showDates = true
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("View Booked Dates")
             }
         }
     }
 }
 
+// Function used to compare two dates
 private fun checkOutDateChecker(
     // Returns false if the currentdate is after the checkoutdate
     // Returns true if the currentdate is before the checkoutdate
@@ -465,4 +596,44 @@ private fun checkOutDateChecker(
         return true
     }
     return true
+}
+
+// Function to change a number to a month
+private fun numToMonth(
+    numToMon: String
+):String{
+    if (numToMon == "01"){
+        return "January"
+    }
+    if (numToMon == "02"){
+        return "February"
+    }
+    if (numToMon == "03"){
+        return "March"
+    }
+    if (numToMon == "04"){
+        return "April"
+    }
+    if (numToMon == "05"){
+        return "May"
+    }
+    if (numToMon == "06"){
+        return "June"
+    }
+    if (numToMon == "07"){
+        return "July"
+    }
+    if (numToMon == "08"){
+        return "August"
+    }
+    if (numToMon == "09"){
+        return "September"
+    }
+    if (numToMon == "10"){
+        return "October"
+    }
+    if (numToMon == "11"){
+        return "November"
+    }
+    else return "December"
 }
