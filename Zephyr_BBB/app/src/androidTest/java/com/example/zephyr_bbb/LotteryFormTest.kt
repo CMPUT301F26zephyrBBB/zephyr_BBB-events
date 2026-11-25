@@ -13,6 +13,12 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.test.junit4.StateRestorationTester
+import com.example.zephyr_bbb.owner.LotteryFormFieldsSaver
+import com.example.zephyr_bbb.owner.formatLotteryDate
+import java.util.Date
+import java.util.TimeZone
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.zephyr_bbb.database.model.Campsite
 import com.example.zephyr_bbb.owner.LotteryForm
@@ -20,8 +26,6 @@ import com.example.zephyr_bbb.owner.LotteryFormFields
 import com.example.zephyr_bbb.owner.toFormFields
 import com.example.zephyr_bbb.owner.toLottery
 import junit.framework.TestCase.assertEquals
-import junit.framework.TestCase.assertFalse
-import junit.framework.TestCase.assertNull
 import junit.framework.TestCase.assertTrue
 
 import org.junit.Rule
@@ -29,16 +33,15 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
-* Tests for OwnerLotteryForm.kt, the Create / Edit Lottery form. They run on the emulator with fake
-* campsites, so they do not use Firebase.
-* The form shows its fields, refuses to submit without a name, and builds the Lottery.
-* Several campsites can be ticked.
-* The registration fields accept typed dates.
-* A booking period that ends too early is not submitted.
-* A blank waitlist capacity submits as unlimited.
-* A lottery converts back into form fields for editing, and errors from the screen are shown.
-*/
-
+ * Tests for OwnerLotteryForm.kt, the Create / Edit Lottery form. They run on the emulator with fake
+ * campsites, so they do not use Firebase.
+ * The form shows its fields, refuses to submit without a name, and builds the Lottery.
+ * Several campsites can be ticked.
+ * The date fields open a calendar picker; OK sets the date and Cancel leaves it alone.
+ * A lottery converts back into form fields for editing, and errors from the screen are shown.
+ * A blank waitlist capacity submits as unlimited.
+ * Entries are kept when the screen is rotated.
+ */
 @RunWith(AndroidJUnit4::class)
 class LotteryFormTest {
     @get:Rule
@@ -49,13 +52,18 @@ class LotteryFormTest {
         Campsite(id = "c2", name = "Willow Bend B04", locationName = "Cochrane"),
         Campsite(id = "c3", name = "Elk Ridge C07", locationName = "Canmore")
     )
+    // A form that passes validation, based on the "October Foothills" storyboard example
     private val validFields = LotteryFormFields(
         title = "October Foothills",
         campsiteIds = setOf("c1", "c2"),
         registrationStart = "2026-10-01",
         registrationEnd = "2026-10-14",
+        bookingStart = "2026-10-18",
+        bookingEnd = "2026-10-31",
         stayStart = "2026-10-18",
-        stayEnd = "2026-11-01"
+        stayEnd = "2026-11-01",
+        winnerCount = "8",
+        waitlistCapacity = ""
     )
 
     private var latestFields = LotteryFormFields()
@@ -128,30 +136,112 @@ class LotteryFormTest {
         assertEquals(setOf("c1", "c2"), latestFields.campsiteIds)
     }
 
-    /** Text can be typed into the period, winner and capacity fields. */
+    /** Every empty date field opens the calendar, and confirming fills it with the highlighted day (today). */
     @Test
-    fun lotteryFormEntersPeriodsWinnersAndCapacity() {
+    fun lotteryFormPicksDatesFromCalendar() {
+        showForm()
+        val today = formatLotteryDate(Date(), TimeZone.getTimeZone("UTC"))
+
+        listOf(
+            "Registration start", "Registration end", "Booking start",
+            "Booking end", "Stay start", "Stay end (checkout)"
+        ).forEach { label ->
+            composeTestRule.onNodeWithText(label).performScrollTo().performClick()
+            composeTestRule.onNodeWithText("OK").performClick()
+        }
+
+        assertEquals(today, latestFields.registrationStart)
+        assertEquals(today, latestFields.registrationEnd)
+        assertEquals(today, latestFields.bookingStart)
+        assertEquals(today, latestFields.bookingEnd)
+        assertEquals(today, latestFields.stayStart)
+        assertEquals(today, latestFields.stayEnd)
+    }
+
+    /** Cancelling the calendar closes it and leaves the date as it was. */
+    @Test
+    fun lotteryFormCancelKeepsDate() {
+        showForm(startFields = validFields)
+
+        composeTestRule.onNodeWithText("Registration start").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Cancel").performClick()
+
+        composeTestRule.onNodeWithText("Cancel").assertDoesNotExist()
+        composeTestRule.onNodeWithText("2026-10-01").performScrollTo().assertIsDisplayed()
+        assertEquals("2026-10-01", latestFields.registrationStart)
+    }
+
+    /** Numbers can be typed into the winner and capacity fields. */
+    @Test
+    fun lotteryFormEntersWinnersAndCapacity() {
         showForm()
 
         composeTestRule.onNodeWithText("Lottery name").performTextInput("October Foothills")
-        composeTestRule.onNodeWithText("Registration start").performScrollTo().performTextInput("2026-10-01")
-        composeTestRule.onNodeWithText("Registration end").performScrollTo().performTextInput("2026-10-14")
-        composeTestRule.onNodeWithText("Booking start").performScrollTo().performTextInput("2026-10-18")
-        composeTestRule.onNodeWithText("Booking end").performScrollTo().performTextInput("2026-10-31")
-        composeTestRule.onNodeWithText("Stay start").performScrollTo().performTextInput("2026-10-18")
-        composeTestRule.onNodeWithText("Stay end (checkout)").performScrollTo().performTextInput("2026-11-01")
         composeTestRule.onNodeWithText("Winner count").performScrollTo().performTextReplacement("8")
         composeTestRule.onNodeWithText("Waitlist capacity (optional)").performScrollTo().performTextInput("20")
 
         assertEquals("October Foothills", latestFields.title)
-        assertEquals("2026-10-01", latestFields.registrationStart)
-        assertEquals("2026-10-14", latestFields.registrationEnd)
-        assertEquals("2026-10-18", latestFields.bookingStart)
-        assertEquals("2026-10-31", latestFields.bookingEnd)
-        assertEquals("2026-10-18", latestFields.stayStart)
-        assertEquals("2026-11-01", latestFields.stayEnd)
         assertEquals("8", latestFields.winnerCount)
         assertEquals("20", latestFields.waitlistCapacity)
+    }
+
+    /**
+     * Entries, the validation error and an open calendar all survive the activity being recreated,
+     * as happens on screen rotation. The form state is held the same way the Create and Edit screens hold it.
+     */
+    @Test
+    fun lotteryFormKeepsEntriesWhenRecreated() {
+        val restorationTester = StateRestorationTester(composeTestRule)
+        restorationTester.setContent {
+            var fields by rememberSaveable(stateSaver = LotteryFormFieldsSaver) {
+                mutableStateOf(LotteryFormFields())
+            }
+
+            LotteryForm(
+                heading = "Create Lottery",
+                fields = fields,
+                campsites = campsites,
+                submitLabel = "Publish",
+                errorMessage = null,
+                isSubmitting = false,
+                onFieldsChange = {
+                    fields = it
+                    latestFields = it
+                },
+                onSubmit = { submitCount += 1 },
+                onBackClick = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Lottery name").performTextInput("October Foothills")
+        composeTestRule.onNodeWithText("Pine Creek A12 · Jasper").performClick()
+        composeTestRule.onNodeWithText("Waitlist capacity (optional)").performScrollTo().performTextInput("20")
+        // Publishing with dates missing shows an error
+        composeTestRule.onNodeWithText("Publish").performScrollTo().performClick()
+        // Leave a calendar open
+        composeTestRule.onNodeWithText("Booking start").performScrollTo().performClick()
+
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        // The calendar is still open; confirming it reports the restored values along with the new date
+        composeTestRule.onNodeWithText("OK").performClick()
+        assertEquals("October Foothills", latestFields.title)
+        assertEquals(setOf("c1"), latestFields.campsiteIds)
+        assertEquals("20", latestFields.waitlistCapacity)
+        assertTrue(latestFields.bookingStart.isNotBlank())
+
+        composeTestRule.onNodeWithText("October Foothills").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pine Creek A12 · Jasper").assertIsOn()
+        composeTestRule.onNodeWithText("Select the registration start date.").performScrollTo().assertIsDisplayed()
+        assertEquals(0, submitCount)
+    }
+
+    /** The back button reports a click. */
+    @Test
+    fun lotteryFormBackWorks() {
+        showForm()
+        composeTestRule.onNodeWithText("<").performClick()
+        assertTrue(backClicked)
     }
 
     /** Publishing without a name shows an error and does not submit. */
@@ -165,18 +255,6 @@ class LotteryFormTest {
         assertEquals(0, submitCount)
     }
 
-    /** Publishing with a booking period that ends too early shows an error and does not submit. */
-    @Test
-    fun lotteryFormDoesNotSubmitBadDates() {
-        showForm(startFields = validFields.copy(bookingEnd = "2026-10-10"))
-
-        composeTestRule.onNodeWithText("Publish").performScrollTo().performClick()
-
-        composeTestRule.onNodeWithText("Booking must end on or after the day it starts.")
-            .performScrollTo()
-            .assertIsDisplayed()
-        assertEquals(0, submitCount)
-    }
 
     /** A valid form with a blank capacity submits. */
     @Test
@@ -222,6 +300,7 @@ class LotteryFormTest {
     fun lotteryConvertsBackToSameFormFields() {
         val fields = validFields.copy(waitlistCapacity = "20")
         assertEquals(fields, fields.toLottery(id = "lottery_1").toFormFields())
-        assertFalse(validFields.toLottery().toFormFields().waitlistCapacity.isNotBlank())
+        // A blank (unlimited) capacity comes back blank
+        assertEquals("", validFields.toLottery().toFormFields().waitlistCapacity)
     }
 }

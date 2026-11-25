@@ -56,17 +56,17 @@ fun LotteryFormFields.validate(timeZone: TimeZone = TimeZone.getDefault()): Stri
         return "Choose at least one campsite."
     }
     val registrationOpens = parseLotteryDate(registrationStart, timeZone)
-        ?: return "Enter the registration start as YYYY-MM-DD."
+        ?: return "Select the registration start date."
     val registrationCloses = parseLotteryEndDate(registrationEnd, timeZone)
-        ?: return "Enter the registration end as YYYY-MM-DD."
+        ?: return "Select the registration end date."
     val bookingOpens = parseLotteryDate(bookingStart, timeZone)
-        ?: return "Enter the booking start as YYYY-MM-DD."
+        ?: return "Select the booking start date."
     val bookingCloses = parseLotteryEndDate(bookingEnd, timeZone)
-        ?: return "Enter the booking end as YYYY-MM-DD."
+        ?: return "Select the booking end date."
     val stayStartDate = parseLotteryDate(stayStart, timeZone)
-        ?: return "Enter the stay start as YYYY-MM-DD."
+        ?: return "Select the stay start date."
     val stayEndDate = parseLotteryDate(stayEnd, timeZone)
-        ?: return "Enter the stay end as YYYY-MM-DD."
+        ?: return "Select the stay end date."
     if (stayEndDate <= stayStartDate) {
         return "The stay must end after it starts."
     }

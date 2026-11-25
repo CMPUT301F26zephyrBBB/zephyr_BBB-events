@@ -16,10 +16,23 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.runtime.LaunchedEffect
+import java.util.Date
+import java.util.TimeZone
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,7 +76,7 @@ fun LotteryForm(
     onSubmit: () -> Unit,
     onBackClick: () -> Unit
 ) {
-    var validationError by remember {
+    var validationError by rememberSaveable {
         mutableStateOf<String?>(null)
     }
 
@@ -222,24 +235,118 @@ private fun DateFieldRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        OutlinedTextField(
+        DatePickerField(
+            label = startLabel,
             value = startValue,
             onValueChange = onStartChange,
-            label = { Text(startLabel) },
-            placeholder = { Text("YYYY-MM-DD") },
-            singleLine = true,
             modifier = Modifier.weight(1f)
         )
-        OutlinedTextField(
+        DatePickerField(
+            label = endLabel,
             value = endValue,
             onValueChange = onEndChange,
-            label = { Text(endLabel) },
-            placeholder = { Text("YYYY-MM-DD") },
-            singleLine = true,
             modifier = Modifier.weight(1f)
         )
     }
 }
+/**
+ * A read-only date field that opens a calendar date picker when tapped.
+ * The chosen day is reported as YYYY-MM-DD.
+ *
+ * @param label The text shown on the field
+ * @param value The current date, YYYY-MM-DD, or blank
+ * @param onValueChange is invoked with the picked date as YYYY-MM-DD
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DatePickerField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showPicker by rememberSaveable { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+
+    // A read-only text field swallows clicks, so watch its presses instead
+    LaunchedEffect(interactionSource) {
+        interactionSource.interactions.collect { interaction ->
+            if (interaction is PressInteraction.Release) {
+                showPicker = true
+            }
+        }
+    }
+
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        readOnly = true,
+        label = { Text(label) },
+        placeholder = { Text("Select date") },
+        singleLine = true,
+        interactionSource = interactionSource,
+        modifier = modifier
+    )
+
+    if (showPicker) {
+        // The date picker works in UTC milliseconds
+        val utc = TimeZone.getTimeZone("UTC")
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = parseLotteryDate(value, utc)?.time
+                ?: System.currentTimeMillis()
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pickerState.selectedDateMillis?.let { millis ->
+                            onValueChange(formatLotteryDate(Date(millis), utc))
+                        }
+                        showPicker = false
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = pickerState)
+        }
+    }
+}
+
+/**
+ * Saves LotteryFormFields across screen rotation and process death, for use with rememberSaveable.
+ */
+val LotteryFormFieldsSaver: Saver<LotteryFormFields, Any> = listSaver(
+    save = { f ->
+        listOf(
+            f.title, ArrayList(f.campsiteIds), f.registrationStart, f.registrationEnd,
+            f.bookingStart, f.bookingEnd, f.stayStart, f.stayEnd, f.winnerCount, f.waitlistCapacity
+        )
+    },
+    restore = { v ->
+        @Suppress("UNCHECKED_CAST")
+        LotteryFormFields(
+            title = v[0] as String,
+            campsiteIds = (v[1] as List<String>).toSet(),
+            registrationStart = v[2] as String,
+            registrationEnd = v[3] as String,
+            bookingStart = v[4] as String,
+            bookingEnd = v[5] as String,
+            stayStart = v[6] as String,
+            stayEnd = v[7] as String,
+            winnerCount = v[8] as String,
+            waitlistCapacity = v[9] as String
+        )
+    }
+)
 
 /**
  * The text shown for a campsite in lottery lists, e.g. "Pine Creek A12 · Jasper".

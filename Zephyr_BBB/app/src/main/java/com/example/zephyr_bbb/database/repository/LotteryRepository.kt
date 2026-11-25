@@ -8,6 +8,7 @@ import com.example.zephyr_bbb.database.model.LotteryEntry
 import com.example.zephyr_bbb.database.model.User
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Query
+import android.util.Log
 
 /**
  * Handles lottery creation, editing, waitlists, results and declines.
@@ -20,6 +21,9 @@ import com.google.firebase.firestore.Query
  * once their registration period has ended.
  */
 class LotteryRepository {
+    private companion object {
+        const val TAG = "LotteryRepository"
+    }
 
     private val db = FirebaseProvider.db
     private val lotteriesRef = db.collection(Collections.LOTTERIES)
@@ -79,7 +83,7 @@ class LotteryRepository {
 
         db.runTransaction { transaction ->
             val existing = transaction.get(lotteryRef)
-                .toObject(Lottery::class.java)!!
+                .toObject(Lottery::class.java) ?: throw lotteryMissing()
 
             check(existing.ownerId == uid) {
                 "Only the owner can edit this lottery."
@@ -172,11 +176,7 @@ class LotteryRepository {
                 val now = Timestamp.now()
 
                 onSuccess(
-                    lotteries.filter {
-                        it.status == "open" &&
-                                now >= it.registrationOpensAt!! &&
-                                now < it.registrationClosesAt!!
-                    }
+                    lotteries.filter { isRegistrationOpen(it, now) }
                 )
             },
             onFailure = onFailure
@@ -241,16 +241,12 @@ class LotteryRepository {
 
         db.runTransaction { transaction ->
             val lottery = transaction.get(lotteryRef)
-                .toObject(Lottery::class.java)!!
+                .toObject(Lottery::class.java) ?: throw lotteryMissing()
 
             val existingEntry = transaction.get(entryRef)
             val now = Timestamp.now()
 
-            check(
-                lottery.status == "open" &&
-                        now >= lottery.registrationOpensAt!! &&
-                        now < lottery.registrationClosesAt!!
-            ) {
+            check(isRegistrationOpen(lottery, now)) {
                 "Registration is not open."
             }
 
@@ -356,7 +352,7 @@ class LotteryRepository {
 
                 db.runTransaction { transaction ->
                     val lottery = transaction.get(lotteryRef)
-                        .toObject(Lottery::class.java)!!
+                        .toObject(Lottery::class.java) ?: throw lotteryMissing()
 
                     val entryResults = entryRefs.map {
                         transaction.get(it)
@@ -383,9 +379,12 @@ class LotteryRepository {
                     } else {
                         val now = Timestamp.now()
 
+                        val closesAt = lottery.registrationClosesAt
+
                         check(
                             lottery.status == "open" &&
-                                    now >= lottery.registrationClosesAt!!
+                                    closesAt != null &&
+                                    now >= closesAt
                         ) {
                             "Registration has not ended."
                         }
@@ -485,9 +484,15 @@ class LotteryRepository {
                     }
                 }
                     .addOnSuccessListener { onSuccess(it) }
-                    .addOnFailureListener { onFailure(it) }
+                    .addOnFailureListener {
+                        Log.w(TAG, "Draw failed for lottery $lotteryId", it)
+                        onFailure(it)
+                    }
             }
-            .addOnFailureListener { onFailure(it) }
+            .addOnFailureListener {
+                Log.w(TAG, "Could not read the entries for lottery $lotteryId", it)
+                onFailure(it)
+            }
     }
     /**
      * Draws every one of the current owner's lotteries whose registration has closed
@@ -505,10 +510,9 @@ class LotteryRepository {
             onSuccess = { lotteries ->
                 val now = Timestamp.now()
 
-                val dueLotteries = lotteries.filter {
-                    it.status == "open" &&
-                            it.registrationClosesAt != null &&
-                            now >= it.registrationClosesAt!!
+                val dueLotteries = lotteries.filter { lottery ->
+                    val closesAt = lottery.registrationClosesAt
+                    lottery.status == "open" && closesAt != null && now >= closesAt
                 }
 
                 if (dueLotteries.isEmpty()) {
@@ -570,7 +574,8 @@ class LotteryRepository {
 
         db.runTransaction { transaction ->
             val entry = transaction.get(entryRef)
-                .toObject(LotteryEntry::class.java)!!
+                .toObject(LotteryEntry::class.java)
+                ?: throw IllegalStateException("You have not joined this lottery.")
 
             check(entry.status == "selected") {
                 "Only an unused winning opportunity can be declined."
@@ -592,7 +597,20 @@ class LotteryRepository {
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { onFailure(it) }
     }
+    /**
+     * True while the lottery is open and the current time is inside its registration period.
+     * A lottery missing either registration date is treated as not open, instead of crashing.
+     */
+    private fun isRegistrationOpen(lottery: Lottery, now: Timestamp): Boolean {
+        val opensAt = lottery.registrationOpensAt ?: return false
+        val closesAt = lottery.registrationClosesAt ?: return false
+        return lottery.status == "open" && now >= opensAt && now < closesAt
+    }
 
+    /** The error used when a lottery document a transaction needs has been deleted. */
+    private fun lotteryMissing(): IllegalStateException {
+        return IllegalStateException("This lottery no longer exists.")
+    }
     private fun readLotteries(
         query: Query,
         onSuccess: (List<Lottery>) -> Unit,

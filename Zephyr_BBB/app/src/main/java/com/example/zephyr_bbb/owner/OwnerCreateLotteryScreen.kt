@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.example.zephyr_bbb.database.model.Campsite
 import com.example.zephyr_bbb.database.repository.CampsiteRepository
@@ -34,7 +35,8 @@ fun OwnerCreateLotteryScreen(
     val lotteryRepository = remember {
         LotteryRepository()
     }
-    var fields by remember {
+    // Saveable so nothing the owner entered is lost when the screen rotates
+    var fields by rememberSaveable(stateSaver = LotteryFormFieldsSaver) {
         mutableStateOf(
             LotteryFormFields(
                 campsiteIds = setOfNotNull(preselectedCampsiteId?.ifBlank { null })

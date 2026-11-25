@@ -27,7 +27,6 @@ import com.example.zephyr_bbb.database.model.Lottery
 import com.example.zephyr_bbb.database.repository.CampsiteRepository
 import com.example.zephyr_bbb.database.repository.LotteryRepository
 import com.example.zephyr_bbb.database.repository.UserRepository
-import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -99,6 +98,22 @@ fun OwnerMyLotteriesScreen(
                             errorMessage = error.message
                         }
                     )
+
+                    // Show the list straight away. The automatic draw below runs alongside it and
+                    // must never hold the list up.
+                    loadLotteries()
+
+                    lotteryRepository.drawDueLotteries(
+                        onSuccess = { drawnIds ->
+                            if (drawnIds.isNotEmpty()) {
+                                loadLotteries()
+                            }
+                        },
+                        onFailure = { error ->
+                            errorMessage = "Automatic draw failed: ${error.message}"
+                        }
+                    )
+                    // [/C08]
                 },
                 onFailure = { error ->
                     errorMessage = error.message
@@ -126,6 +141,7 @@ fun OwnerMyLotteriesScreen(
 /**Composable function that shows the list of an owner's lotteries.
 * Each lottery shows its name, campsites and status, with a View Lottery button.
 * A Create Lottery button sits at the bottom of the screen.
+* Each lottery also shows its registration period.
 * @param lotteries The lotteries to list
 * @param campsiteNames Campsite names keyed by campsite ID
 * @param now The current time, used to work out each lottery's status
@@ -203,6 +219,14 @@ fun OwnerMyLotteriesContent(
                     if (names.isNotEmpty()) {
                         Text(names.joinToString(", "))
                     }
+                    Text(
+                        "Registration: ${
+                            formatClosingRange(
+                                lottery.registrationOpensAt?.toDate(),
+                                lottery.registrationClosesAt?.toDate()
+                            )
+                        }"
+                    )
                     Text(
                         "Status: ${
                             lotteryStatusLabel(

@@ -8,7 +8,6 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.zephyr_bbb.database.model.Lottery
 import com.example.zephyr_bbb.owner.LotteryDetailsContent
-import com.example.zephyr_bbb.owner.OwnerLotteryDetailsScreen
 import com.example.zephyr_bbb.owner.parseLotteryDate
 import com.example.zephyr_bbb.owner.parseLotteryEndDate
 import com.google.firebase.Timestamp
@@ -154,5 +153,13 @@ class OwnerLotteryDetailsScreenTest {
         showDetails(openLottery.copy(status = "cancelled"))
         composeTestRule.onNodeWithText("Status: Cancelled").assertIsDisplayed()
         composeTestRule.onNodeWithText("Edit Lottery").assertDoesNotExist()
+    }
+
+    /** The back button reports a click. */
+    @Test
+    fun lotteryDetailsBackWorks() {
+        showDetails(openLottery)
+        composeTestRule.onNodeWithText("<").performClick()
+        assertTrue(backClicked)
     }
 }
