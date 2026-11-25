@@ -11,7 +11,7 @@ import com.example.zephyr_bbb.database.model.User
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.QuerySnapshot
-
+import com.example.zephyr_bbb.database.model.Rating
 /**
  * Handles admin browsing, moderation and communication logs.
  * Removed profiles are marked "removed".
@@ -298,6 +298,83 @@ class AdminRepository {
                 .addOnFailureListener { onFailure(it) }
         }
     }
+
+    /**
+     * Removes an entrant's campsite rating.
+     * Updates the campsite's rating totals atomically.
+     * Requires an active admin profile.
+     */
+    fun removeRating(
+        campsiteId: String,
+        entrantId: String,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        asAdmin(onFailure) {
+            val campsiteRef = db.collection(Collections.CAMPSITES)
+                .document(campsiteId)
+
+            val ratingRef = campsiteRef
+                .collection(Collections.RATINGS)
+                .document(entrantId)
+
+            db.runTransaction { transaction ->
+                val campsite = transaction.get(campsiteRef)
+                    .toObject(Campsite::class.java)
+                    ?: throw IllegalStateException("Campsite not found.")
+
+                val rating = transaction.get(ratingRef)
+                    .toObject(Rating::class.java)
+
+                if (rating != null) {
+                    check(
+                        campsite.ratingCount > 0 &&
+                                campsite.ratingSum >= rating.score
+                    ) {
+                        "Inconsistent rating totals."
+                    }
+
+                    transaction.delete(ratingRef)
+
+                    transaction.update(
+                        campsiteRef,
+                        mapOf(
+                            "ratingSum" to campsite.ratingSum - rating.score,
+                            "ratingCount" to campsite.ratingCount - 1L,
+                            "updatedAt" to Timestamp.now()
+                        )
+                    )
+                }
+
+                true
+            }
+                .addOnSuccessListener { onSuccess() }
+                .addOnFailureListener { onFailure(it) }
+        }
+    }
+
+    /**
+     * Removes an entrant's written campsite review.
+     * Does not affect the campsite's numerical rating.
+     * Requires an active admin profile.
+     */
+    fun removeReview(
+        campsiteId: String,
+        entrantId: String,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        asAdmin(onFailure) {
+            db.collection(Collections.CAMPSITES)
+                .document(campsiteId)
+                .collection(Collections.REVIEWS)
+                .document(entrantId)
+                .delete()
+                .addOnSuccessListener { onSuccess() }
+                .addOnFailureListener { onFailure(it) }
+        }
+    }
+
 
     private fun asAdmin(
         onFailure: (Exception) -> Unit,
