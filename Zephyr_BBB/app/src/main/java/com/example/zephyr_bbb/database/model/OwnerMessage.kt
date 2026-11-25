@@ -4,7 +4,8 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
 
 /**
- * Stores an owner's message to an entrant about a reservation.
+ * Stores a message between a campsite owner and an entrant
+ * regarding their reservation.
  * Path: messages/{messageId}
  */
 data class OwnerMessage(
