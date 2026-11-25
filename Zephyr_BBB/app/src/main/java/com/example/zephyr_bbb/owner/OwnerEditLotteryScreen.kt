@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.example.zephyr_bbb.database.model.Campsite
 import com.example.zephyr_bbb.database.repository.CampsiteRepository
@@ -34,8 +35,12 @@ fun OwnerEditLotteryScreen(
     val lotteryRepository = remember {
         LotteryRepository()
     }
-    var fields by remember {
+    var fields by rememberSaveable(stateSaver = LotteryFormFieldsSaver) {
         mutableStateOf(LotteryFormFields())
+    }
+    // True once the lottery has filled the form, so a rotation doesn't overwrite the owner's edits
+    var fieldsLoaded by rememberSaveable {
+        mutableStateOf(false)
     }
     var campsites by remember {
         mutableStateOf<List<Campsite>>(emptyList())
@@ -62,7 +67,10 @@ fun OwnerEditLotteryScreen(
                                 errorMessage = "This lottery could not be found."
                                 canEdit = false
                             } else {
-                                fields = lottery.toFormFields()
+                                if (!fieldsLoaded) {
+                                    fields = lottery.toFormFields()
+                                    fieldsLoaded = true
+                                }
                                 canEdit = canEditLottery(lottery.status)
 
                                 if (!canEdit) {

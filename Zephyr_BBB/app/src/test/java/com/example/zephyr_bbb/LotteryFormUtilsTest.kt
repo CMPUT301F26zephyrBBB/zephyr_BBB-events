@@ -13,6 +13,8 @@ import com.example.zephyr_bbb.owner.parseLotteryDate
 import com.example.zephyr_bbb.owner.parseLotteryEndDate
 import com.example.zephyr_bbb.owner.validate
 import com.example.zephyr_bbb.owner.waitlistCapacityOrNull
+import androidx.compose.runtime.saveable.SaverScope
+import com.example.zephyr_bbb.owner.LotteryFormFieldsSaver
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -97,6 +99,20 @@ class LotteryFormUtilsTest {
         )
     }
 
+    /** Ranges across months or years show both months or years; a missing date shows "Not set". */
+    @Test
+    fun formatDateRangeAcrossMonthsAndYears() {
+        assertEquals(
+            "Oct 28 – Nov 3, 2026",
+            formatDateRange(date("2026-10-28"), date("2026-11-03"), utc)
+        )
+        assertEquals(
+            "Dec 30, 2026 – Jan 2, 2027",
+            formatDateRange(date("2026-12-30"), date("2027-01-02"), utc)
+        )
+        assertEquals("Not set", formatDateRange(null, date("2026-11-03"), utc))
+    }
+
     /** A registration or booking range shows the last open day, not the day after. */
     @Test
     fun formatClosingRangeShowsLastOpenDay() {
@@ -116,17 +132,10 @@ class LotteryFormUtilsTest {
         assertEquals("Oct 18–21, 2026", formatStayRange("2026-10-18", "2026-10-21", utc))
     }
 
-    /** A completely filled-in form has no validation error. */
+    /** A completely filled-in form, with one or several campsites, has no validation error. */
     @Test
     fun validFormHasNoError() {
         assertNull(validFields.validate(utc))
-    }
-
-    /** A form with several campsites is valid. */
-    @Test
-    fun formAllowsMultipleCampsites() {
-        val fields = validFields.copy(campsiteIds = setOf("a", "b", "c"))
-        assertNull(fields.validate(utc))
     }
 
     /** A blank lottery name is rejected. */
@@ -151,11 +160,11 @@ class LotteryFormUtilsTest {
     @Test
     fun formRequiresRegistrationDates() {
         assertEquals(
-            "Enter the registration start as YYYY-MM-DD.",
+            "Select the registration start date.",
             validFields.copy(registrationStart = "").validate(utc)
         )
         assertEquals(
-            "Enter the registration end as YYYY-MM-DD.",
+            "Select the registration end date.",
             validFields.copy(registrationEnd = "Oct 14").validate(utc)
         )
     }
@@ -164,11 +173,11 @@ class LotteryFormUtilsTest {
     @Test
     fun formRequiresBookingDates() {
         assertEquals(
-            "Enter the booking start as YYYY-MM-DD.",
+            "Select the booking start date.",
             validFields.copy(bookingStart = "").validate(utc)
         )
         assertEquals(
-            "Enter the booking end as YYYY-MM-DD.",
+            "Select the booking end date.",
             validFields.copy(bookingEnd = "2026-02-30").validate(utc)
         )
     }
@@ -177,11 +186,11 @@ class LotteryFormUtilsTest {
     @Test
     fun formRequiresStayDates() {
         assertEquals(
-            "Enter the stay start as YYYY-MM-DD.",
+            "Select the stay start date.",
             validFields.copy(stayStart = "").validate(utc)
         )
         assertEquals(
-            "Enter the stay end as YYYY-MM-DD.",
+            "Select the stay end date.",
             validFields.copy(stayEnd = "").validate(utc)
         )
     }
@@ -195,6 +204,29 @@ class LotteryFormUtilsTest {
         )
         assertEquals(
             "Registration must end on or after the day it starts.",
+            fields.validate(utc)
+        )
+    }
+
+    /** Registration can start and end on the same day, since end dates are inclusive. */
+    @Test
+    fun registrationCanBeOneDay() {
+        val fields = validFields.copy(
+            registrationStart = "2026-10-14",
+            registrationEnd = "2026-10-14"
+        )
+        assertNull(fields.validate(utc))
+    }
+
+    /** Booking that ends before it starts is rejected. */
+    @Test
+    fun bookingCannotEndBeforeItStarts() {
+        val fields = validFields.copy(
+            bookingStart = "2026-10-18",
+            bookingEnd = "2026-10-10"
+        )
+        assertEquals(
+            "Booking must end on or after the day it starts.",
             fields.validate(utc)
         )
     }
@@ -233,12 +265,13 @@ class LotteryFormUtilsTest {
             validFields.copy(winnerCount = "").validate(utc)
         )
     }
-    /** A blank capacity is valid and means an unlimited waitlist. */
+    /** A blank capacity is valid and means an unlimited waitlist; a number is read as that capacity. */
     @Test
     fun blankWaitlistCapacityIsUnlimited() {
         val fields = validFields.copy(waitlistCapacity = "")
         assertNull(fields.validate(utc))
         assertNull(fields.waitlistCapacityOrNull())
+        assertEquals(20L, validFields.copy(waitlistCapacity = "20").waitlistCapacityOrNull())
     }
 
     /** A draw is due once registration has closed, and not before. */
@@ -260,14 +293,40 @@ class LotteryFormUtilsTest {
         )
     }
 
-    /** A drawn lottery is shown as Completed. */
+    /** An open lottery is Upcoming before registration, and Drawing winners once it has closed. */
+    @Test
+    fun openLotteryOutsideRegistrationIsUpcomingOrDrawing() {
+        assertEquals(
+            "Upcoming",
+            lotteryStatusLabel("open", registrationOpens, registrationCloses, date("2026-09-30"))
+        )
+        assertEquals(
+            "Drawing winners",
+            lotteryStatusLabel("open", registrationOpens, registrationCloses, registrationCloses)
+        )
+    }
+
+    /** Drawn and cancelled lotteries are shown as Completed and Cancelled. */
     @Test
     fun drawnLotteryIsCompleted() {
         assertEquals(
             "Completed",
             lotteryStatusLabel("drawn", registrationOpens, registrationCloses, date("2026-10-15"))
         )
+        assertEquals(
+            "Cancelled",
+            lotteryStatusLabel("cancelled", registrationOpens, registrationCloses, date("2026-10-05"))
+        )
     }
+
+    /** The saver used to keep the form through screen rotation restores every field exactly. */
+    @Test
+    fun formFieldsSurviveSaveAndRestore() {
+        val fields = validFields.copy(waitlistCapacity = "20")
+        val saved = with(LotteryFormFieldsSaver) { SaverScope { true }.save(fields) }!!
+        assertEquals(fields, LotteryFormFieldsSaver.restore(saved))
+    }
+
     /** A drawn or cancelled lottery, or one with no closing time, is not due for a draw. */
     @Test
     fun drawIsNotDueOnceDrawnOrCancelled() {
