@@ -1,18 +1,16 @@
 package com.example.zephyr_bbb.owner
 
-import android.app.ProgressDialog.show
-import android.text.TextUtils.split
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -34,10 +32,21 @@ import com.example.zephyr_bbb.database.model.Reservation
 import com.example.zephyr_bbb.database.repository.CampsiteRepository
 import com.example.zephyr_bbb.database.repository.ReservationRepository
 import com.example.zephyr_bbb.database.repository.UserRepository
-import com.google.common.math.LinearTransformation.horizontal
 import java.text.SimpleDateFormat
 import java.util.Date
 
+/**
+ * A composable function that creates a screen for users with owner permissions to look at the reservations
+ * that they have either ongoing, in the past or canceled reservations. Shows the screen for both the
+ * list view and individual view
+ *
+ * I Know that this function is very long. I just do not know where I should have split it as there are
+ * really only 2 screens that it is showing.
+ *
+ * @param onBackClick is invoked when the user clicks the back button
+ * @param onMessageClick is invoked when the user clicks the MessageEntrant button
+ */
+@Suppress("SimplifyBooleanWithConstants")
 @Composable
 fun OwnerMyReservationsScreen(
     onBackClick: () -> Unit,
@@ -95,62 +104,69 @@ fun OwnerMyReservationsScreen(
     var showSelectedReservation by remember{
         mutableStateOf(false)
     }
-
-    LaunchedEffect(Unit) {
-        reservationRepository.getOwnerReservations(
-            onSuccess = {list->
-                reservations = list
-                isLoading = false
-            },
-            onFailure = {error->
-                errorMessage = error.message
-                isLoading = false
-            }
-        )
+    var acceptedOrNot by remember{
+        mutableStateOf("")
     }
-
+    LaunchedEffect(showReservations) {
+        if (showReservations == true) {
+            reservationRepository.getOwnerReservations(
+                onSuccess = { list ->
+                    reservations = list
+                    isLoading = false
+                },
+                onFailure = { error ->
+                    errorMessage = error.message
+                    isLoading = false
+                }
+            )
+        }
+    }
     // Shows a screen when you click view details on a reservation
     if(selectedReservation != null) {
         showSelectedReservation = true
     }
+    // Creates a screen for
     if(showSelectedReservation == true){
         showReservations = false
         val reservation = selectedReservation!!
         // Used to get info about the campsite
-        campsiteRepository.getCampsite(
-            campsiteId = reservation.campsiteId,
-            onSuccess = {campsite->
-                if (campsite != null){
-                    campsiteName = campsite.name
-                    campsiteLocation = campsite.locationName
-                    campsiteRules = campsite.rules
+        LaunchedEffect(reservation.entrantId, reservation.campsiteId) {
+            campsiteRepository.getCampsite(
+                campsiteId = reservation.campsiteId,
+                onSuccess = { campsite ->
+                    if (campsite != null) {
+                        campsiteName = campsite.name
+                        campsiteLocation = campsite.locationName
+                        campsiteRules = campsite.rules
+                    }
+                    isLoading = false
+                },
+                onFailure = { error ->
+                    errorMessage = error.message
+                    isLoading = false
                 }
-                isLoading = false
-            },
-            onFailure = {error->
-                errorMessage = error.message
-                isLoading = false
-            }
-        )
-        // Used to get info about the user
-        userRepository.getUser(
-            userId = reservation.entrantId,
-            onSuccess = {user->
-                if (user != null){
-                    entrantName = user.name
+            )
+            // Used to get info about the user
+            userRepository.getUser(
+                userId = reservation.entrantId,
+                onSuccess = { user ->
+                    if (user != null) {
+                        entrantName = user.name
+                    }
+                    isLoading = false
+                },
+                onFailure = { error ->
+                    errorMessage = error.message
+                    isLoading = false
                 }
-                isLoading = false
-            },
-            onFailure = {error->
-                errorMessage = error.message
-                isLoading = false
-            }
-        )
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(16.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Back Button
@@ -163,36 +179,33 @@ fun OwnerMyReservationsScreen(
             ) {
                 Text("<")
             }
-
-            Text(reservation.id)
-            Spacer(modifier = Modifier.height(2.dp))
+            // Prints the reservation id and status of the reservation
+            Text("${reservation.id} - ${reservation.status}")
+            // Prints Campsite
             Text(
                 text = "Campsite",
                 color = Color(0xFF6E757C),
                 fontSize = 13.sp,
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            // Prints the name of the campsite
             Text(campsiteName)
-            Spacer(modifier = Modifier.height(2.dp))
+            // Prints Entrant
             Text(
                 text = "Entrant",
                 color = Color(0xFF6E757C),
                 fontSize = 13.sp,
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            // Prints the entrants name
             Text(entrantName)
-            Spacer(modifier = Modifier.height(2.dp))
+            // A Row for the check in and out times
             Row(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .padding(16.dp),
+                    .fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(40.dp)
+
             ){
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding()
-                        .padding(16.dp),
+                    modifier = Modifier,
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
@@ -200,15 +213,10 @@ fun OwnerMyReservationsScreen(
                         color = Color(0xFF6E757C),
                         fontSize = 13.sp,
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
                     Text(reservation.checkInDate)
                 }
-                Spacer(modifier = Modifier.height(2.dp))
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding()
-                        .padding(16.dp),
+                    modifier = Modifier,
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
@@ -216,31 +224,29 @@ fun OwnerMyReservationsScreen(
                         color = Color(0xFF6E757C),
                         fontSize = 13.sp,
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
                     Text(reservation.checkOutDate)
                 }
             }
-            Text("Rules Acknowledged: ${reservation.acceptedPolicyVersion}")
-            Spacer(modifier = Modifier.height(2.dp))
+            if (reservation.acceptedPolicyVersion == 1L){
+                acceptedOrNot = "Accepted"
+            }
+            else acceptedOrNot = "Not yet accepted"
+            // Prints Rules Acknowledged and whether they were
+            Text("Rules Acknowledged: $acceptedOrNot")
+            // Prints the rules of the campsite
             Text(campsiteRules)
-            Spacer(modifier = Modifier.height(2.dp))
+            // Prints accepted by then the entrants name
             Text(
                 text = "Accepted by $entrantName",
                 color = Color(0xFF6E757C),
                 fontSize = 13.sp,
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text("${reservation.policiesAcceptedAt}")
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "Reservation confirmed on",
-                color = Color(0xFF6E757C),
-                fontSize = 13.sp,
-            )
-            Spacer(modifier = Modifier.height(2.dp))
+            // Makes the timestamp into a readable date that is a string
+            val acceptedAt = reservation.policiesAcceptedAt?.toDate()
+            Text("${SimpleDateFormat("yyyy-MM-dd - HH:mm").format(acceptedAt)}")
             Text("Rules acknowledgement is required before confirming a reservation")
-
-            if(typeOfReservation == "Active" ) {
+            // Button to reject the reservation
+            if(typeOfReservation == "Active" || (typeOfReservation == "" && reservation.status == "confirmed")) {
                 Button(
                     onClick = {
                         showRejectionDialog = true
@@ -250,6 +256,7 @@ fun OwnerMyReservationsScreen(
                     Text("Reject Reservation")
                 }
             }
+            // Button to message the entrant
             Button(
                 onClick = {
                     onMessageClick(reservation.id)
@@ -298,6 +305,7 @@ fun OwnerMyReservationsScreen(
             )
         }
     }
+
     // Shows Booked Dates for All campgrounds
     if (showDates == true){
         showReservations = false
@@ -312,6 +320,7 @@ fun OwnerMyReservationsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                // Back Button
                 Button(
                     onClick = {
                         showDates = false
@@ -326,48 +335,56 @@ fun OwnerMyReservationsScreen(
             if (reservations.isEmpty()) {
                 Text("No Current Booked Dates")
             }
-
+            // Prints the information of the selected reservation
             LazyColumn {
                 items(reservations) { reservation ->
                     val checkInDate = (reservation.checkInDate).split("-")
                     val checkOutDate = (reservation.checkOutDate).split("-")
-                    var entrantName1 = ""
-                    var campsiteName1 = ""
-                    userRepository.getUser(
-                        userId = reservation.entrantId,
-                        onSuccess = { user ->
-                            if (user != null) {
-                                entrantName1 = user.name
+                    var entrantName by remember(reservation.id) {
+                        mutableStateOf("")
+                    }
+                    var campsiteName by remember(reservation.id) {
+                        mutableStateOf("")
+                    }
+                    LaunchedEffect(reservation.entrantId, reservation.campsiteId) {
+                        userRepository.getUser(
+                            userId = reservation.entrantId,
+                            onSuccess = { user ->
+                                if (user != null) {
+                                    entrantName = user.name
+                                }
+                                isLoading = false
+                            },
+                            onFailure = { error ->
+                                errorMessage = error.message
+                                isLoading = false
                             }
-                            isLoading = false
-                        },
-                        onFailure = { error ->
-                            errorMessage = error.message
-                            isLoading = false
-                        }
-                    )
-                    campsiteRepository.getCampsite(
-                        campsiteId = reservation.campsiteId,
-                        onSuccess = { campsite ->
-                            if (campsite != null) {
-                                campsiteName1 = campsite.name
+                        )
+                        campsiteRepository.getCampsite(
+                            campsiteId = reservation.campsiteId,
+                            onSuccess = { campsite ->
+                                if (campsite != null) {
+                                    campsiteName = campsite.name
+                                }
+                                isLoading = false
+                            },
+                            onFailure = { error ->
+                                errorMessage = error.message
+                                isLoading = false
                             }
-                            isLoading = false
-                        },
-                        onFailure = { error ->
-                            errorMessage = error.message
-                            isLoading = false
-                        }
-                    )
-                    val checkInMonth = checkInDate[1]
-                    val checkOutMonth = checkOutDate[1]
-                    if (checkInMonth != checkOutMonth) {
+                        )
+                    }
+                    val checkInMonthNum = checkInDate[1]
+                    val checkOutMonthNum = checkOutDate[1]
+                    val checkInMonth = numToMonth(checkInDate[1])
+                    val checkOutMonth = numToMonth(checkOutDate[1])
+                    if (checkInMonthNum != checkOutMonthNum) {
                         Text(
-                            "$checkInMonth ${checkInDate[2]},${checkInDate[0]} - $checkOutMonth ${checkOutDate[2]},${checkOutDate[0]}" +
-                                    " - $entrantName1 - $campsiteName1"
+                            "${numToMonth(checkInMonth)} ${checkInDate[2]},${checkInDate[0]} - ${numToMonth(checkOutMonth)} ${checkOutDate[2]},${checkOutDate[0]}" +
+                                    " - $entrantName - $campsiteName"
                         )
                     } else {
-                        Text("$checkInMonth ${checkInDate[2]} - ${checkOutDate[2]},${checkInDate[0]} - $entrantName1 - $campsiteName1")
+                        Text("${numToMonth(checkInMonth)} ${checkInDate[2]},${checkInDate[0]} - ${checkOutDate[2]},${checkInDate[0]} - $entrantName - $campsiteName")
 
                     }
                     HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
@@ -375,6 +392,7 @@ fun OwnerMyReservationsScreen(
             }
         }
     }
+    // Prints all the reservations that the owner has
     if(showReservations == true) {
         Column(
             modifier = Modifier
@@ -392,7 +410,6 @@ fun OwnerMyReservationsScreen(
                 ) {
                     Text("<")
                 }
-
                 Text("Reservations")
                 // Creates a dropdown menu for selecting what type of reservation you want to see
                 // Knowledge of DropdownMenu came from Android Developers - Cited in SethCitations.txt
@@ -400,6 +417,13 @@ fun OwnerMyReservationsScreen(
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
+                    DropdownMenuItem(
+                        text = {Text("All Reservations")},
+                        onClick = {
+                            typeOfReservation = ""
+                            expanded = false
+                        }
+                    )
                     DropdownMenuItem(
                         text = { Text("Active Reservations") },
                         onClick = {
@@ -448,11 +472,44 @@ fun OwnerMyReservationsScreen(
                 modifier = Modifier.weight(1f)
             ) {
                 items(reservations) { reservation ->
+                    var entrantName by remember(reservation.id) {
+                        mutableStateOf("")
+                    }
+                    var campsiteName by remember(reservation.id) {
+                        mutableStateOf("")
+                    }
+                    LaunchedEffect(reservation.entrantId, reservation.campsiteId) {
+                        userRepository.getUser(
+                            userId = reservation.entrantId,
+                            onSuccess = { user ->
+                                if (user != null) {
+                                    entrantName = user.name
+                                }
+                                isLoading = false
+                            },
+                            onFailure = { error ->
+                                errorMessage = error.message
+                                isLoading = false
+                            }
+                        )
+                        campsiteRepository.getCampsite(
+                            campsiteId = reservation.campsiteId,
+                            onSuccess = { campsite ->
+                                if (campsite != null) {
+                                    campsiteName = campsite.name
+                                }
+                                isLoading = false
+                            },
+                            onFailure = { error ->
+                                errorMessage = error.message
+                                isLoading = false
+                            }
+                        )
+                    }
                     // Knowledge of time stamp came from Android Developers and Stack Overflow
                     // Cited in SethCitations.txt
                     val datePast = checkOutDateChecker(reservation.checkOutDate, timeStamp)
-                    Text(reservation.status)
-                    // If reservation is rejected or cancelled
+                    // If reservation is rejected or canceled
                     if ((reservation.status == "rejected" || reservation.status == "cancelled") && typeOfReservation == "Cancelled") {
                         Column(
                             modifier = Modifier
@@ -460,9 +517,23 @@ fun OwnerMyReservationsScreen(
                                 .padding(vertical = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text(reservation.id)
-                            Text(reservation.entrantId)
-                            Text("${reservation.checkInDate}-${reservation.checkOutDate}")
+                            Text(
+                                text = campsiteName,
+                                fontSize = 18.sp,
+                            )
+                            Text(
+                                text = entrantName,
+                                fontSize = 14.sp,
+                            )
+                            Text(
+                                text = "${reservation.checkInDate}-${reservation.checkOutDate}",
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = reservation.status,
+                                fontSize = 12.sp,
+                                color = Color(0xFF707572)
+                            )
                             Button(
                                 onClick = {
                                     selectedReservation = reservation
@@ -484,9 +555,23 @@ fun OwnerMyReservationsScreen(
                                 .padding(vertical = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text(reservation.id)
-                            Text(reservation.entrantId)
-                            Text("${reservation.checkInDate}-${reservation.checkOutDate}")
+                            Text(
+                                text = campsiteName,
+                                fontSize = 18.sp,
+                            )
+                            Text(
+                                text = entrantName,
+                                fontSize = 14.sp,
+                            )
+                            Text(
+                                text = "${reservation.checkInDate}-${reservation.checkOutDate}",
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = reservation.status,
+                                fontSize = 12.sp,
+                                color = Color(0xFF707572)
+                            )
                             Button(
                                 onClick = {
                                     selectedReservation = reservation
@@ -508,9 +593,23 @@ fun OwnerMyReservationsScreen(
                                 .padding(vertical = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text(reservation.id)
-                            Text(reservation.entrantId)
-                            Text("${reservation.checkInDate}-${reservation.checkOutDate}")
+                            Text(
+                                text = campsiteName,
+                                fontSize = 18.sp,
+                            )
+                            Text(
+                                text = entrantName,
+                                fontSize = 14.sp,
+                            )
+                            Text(
+                                text = "${reservation.checkInDate}-${reservation.checkOutDate}",
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = reservation.status,
+                                fontSize = 12.sp,
+                                color = Color(0xFF707572)
+                            )
                             Button(
                                 onClick = {
                                     selectedReservation = reservation
@@ -523,9 +622,48 @@ fun OwnerMyReservationsScreen(
                                 modifier = Modifier.padding(top = 8.dp)
                             )
                         }
-                    } else Text("No Reservations")
+                    }
+                    // If you want to see all the reservations again
+                    if(typeOfReservation == ""){
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = campsiteName,
+                                fontSize = 18.sp,
+                            )
+                            Text(
+                                text = entrantName,
+                                fontSize = 14.sp,
+                            )
+                            Text(
+                                text = "${reservation.checkInDate}-${reservation.checkOutDate}",
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = reservation.status,
+                                fontSize = 12.sp,
+                                color = Color(0xFF707572)
+                            )
+                            Button(
+                                onClick = {
+                                    selectedReservation = reservation
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("View Details")
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        }
+                    }
                 }
             }
+            // Text for if there are no reservations
             if (reservations.isEmpty()) {
                 if (typeOfReservation == "Active") {
                     Text("No Active Reservations")
@@ -549,7 +687,16 @@ fun OwnerMyReservationsScreen(
     }
 }
 
-// Function used to compare two dates
+
+/**
+ * Compares a checkout date and the current date and returns true or false depending on if the checkout date
+ * has already past
+ *
+ * @param checkOutDate a string that is in the format of "yyyy-MM-DD" that represents the date you
+ * want to compare
+ * @param currentDate a string that is in the format of "yyyy-MM-DD"  that represents the current date
+ * @return "true" if the current date is before the checkout date, or "false" if the current date is after the checkout date
+ */
 private fun checkOutDateChecker(
     // Returns false if the currentdate is after the checkoutdate
     // Returns true if the currentdate is before the checkoutdate
@@ -598,7 +745,12 @@ private fun checkOutDateChecker(
     return true
 }
 
-// Function to change a number to a month
+/**
+ * Converts a number that is in a string that represents a month, into a string with the month's name in it
+ *
+ * @param numToMon the string of the month represented in a number that you want to change into a string
+ * @return a string that is a month
+ */
 private fun numToMonth(
     numToMon: String
 ):String{

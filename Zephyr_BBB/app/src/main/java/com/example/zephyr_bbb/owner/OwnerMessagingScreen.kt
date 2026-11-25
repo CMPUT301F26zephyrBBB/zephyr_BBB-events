@@ -25,7 +25,16 @@ import androidx.compose.ui.unit.dp
 import com.example.zephyr_bbb.database.model.OwnerMessage
 import com.example.zephyr_bbb.database.repository.MessageRepository
 
-// Screen for Messaging
+/**
+ * A composable function that creates a screen for users with owner permissions to message entrants
+ * who have a reservation to one of their campsites.
+ * Messages are persistent and automatically refresh whenever one is sent.
+ *
+ * @param reservationId The unique id of a reservation. Allows the function go get the related information
+ * for the owner to be able to message the entrant, including details about the campsite, and message
+ * history, and entrants name.
+ * @param onBackClick is invoked when the user clicks the back button
+ */
 @Composable
 fun OwnerMessagingScreen(
     reservationId: String,
@@ -60,7 +69,6 @@ fun OwnerMessagingScreen(
             listener.remove()
         }
     }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -72,6 +80,7 @@ fun OwnerMessagingScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ){
+            // Back Button
             Button(
                 onClick = onBackClick
             ){
@@ -82,7 +91,7 @@ fun OwnerMessagingScreen(
         if (errorMessage != null){
             Text("Error: $errorMessage")
         }
-        // Creates all the text messsages on the screen
+        // Creates all the text messages on the screen
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
