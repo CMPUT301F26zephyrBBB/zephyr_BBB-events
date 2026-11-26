@@ -9,7 +9,7 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.QuerySnapshot
 
 /**
- * Stores owner-to-entrant messages about reservations.
+ *Stores bidirectional messages between owners and entrants.
  * Messages: messages/{messageId}
  * Call after sign-in.
  * Admin message logs are handled by AdminRepository.
@@ -20,7 +20,8 @@ class MessageRepository {
     private val messagesRef = db.collection(Collections.MESSAGES)
 
     /**
-     * Sends a message from the reservation's owner to its entrant.
+     * Sends a message between the owner and entrant of a reservation.
+     * Only reservation participants can send messages.
      * Returns the generated message ID.
      */
     fun sendMessage(
@@ -46,8 +47,12 @@ class MessageRepository {
             val reservation = transaction.get(reservationRef)
                 .toObject(Reservation::class.java)!!
 
-            check(reservation.ownerId == uid) {
-                "Only the campsite owner can send this message."
+            val recipientId = when (uid) {
+                reservation.ownerId -> reservation.entrantId
+                reservation.entrantId -> reservation.ownerId
+                else -> throw IllegalStateException(
+                    "Only reservation participants can send messages."
+                )
             }
 
             val now = Timestamp.now()
@@ -56,7 +61,7 @@ class MessageRepository {
                 messageRef,
                 OwnerMessage(
                     senderId = uid,
-                    recipientId = reservation.entrantId,
+                    recipientId = recipientId,
                     reservationId = reservationId,
                     body = body.trim(),
                     createdAt = now,
