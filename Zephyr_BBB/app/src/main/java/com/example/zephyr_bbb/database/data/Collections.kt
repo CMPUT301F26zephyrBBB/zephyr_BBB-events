@@ -13,4 +13,5 @@ object Collections {
     const val NOTIFICATIONS = "notifications"
     const val MESSAGES = "messages"
     const val RATINGS = "ratings"
+    const val REVIEWS = "reviews"
 }

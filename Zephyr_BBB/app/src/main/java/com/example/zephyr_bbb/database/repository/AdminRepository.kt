@@ -11,13 +11,15 @@ import com.example.zephyr_bbb.database.model.User
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.QuerySnapshot
-
+import com.example.zephyr_bbb.database.model.Rating
 /**
  * Handles admin browsing, moderation and communication logs.
  * Removed profiles are marked "removed".
  * Reservation and communication history is preserved.
- * Image removal only clears Firestore metadata/references.
- * Actual image-file removal remains deferred with Storage setup.
+ * Supports moderation of ratings, reviews and images.
+ * Image removal deletes the Firebase Storage file and Firestore
+ * metadata, and clears the associated campsite or profile image
+ * reference when it matches the removed image.
  */
 class AdminRepository {
 
@@ -247,8 +249,9 @@ class AdminRepository {
     }
 
     /**
-     * Removes image metadata and its profile/campsite reference.
-     * Does not delete a Storage file while image uploads are deferred.
+     * Removes an image from Firebase Storage and Firestore.
+     * Clears its matching profile or campsite image reference.
+     * Requires an active admin profile.
      */
     fun removeImage(
         imageId: String,
@@ -256,37 +259,55 @@ class AdminRepository {
         onFailure: (Exception) -> Unit
     ) {
         asAdmin(onFailure) {
-            val imageRef = db.collection(Collections.IMAGES)
-                .document(imageId)
+            ImageRepository().deleteImage(
+                imageId = imageId,
+                onSuccess = onSuccess,
+                onFailure = onFailure
+            )
+        }
+    }
+    /**
+     * Removes an entrant's campsite rating.
+     * Updates the campsite's rating totals atomically.
+     * Requires an active admin profile.
+     */
+    fun removeRating(
+        campsiteId: String,
+        entrantId: String,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        asAdmin(onFailure) {
+            val campsiteRef = db.collection(Collections.CAMPSITES)
+                .document(campsiteId)
+
+            val ratingRef = campsiteRef
+                .collection(Collections.RATINGS)
+                .document(entrantId)
 
             db.runTransaction { transaction ->
-                val image = transaction.get(imageRef)
-                    .toObject(ImageRecord::class.java)!!
+                val campsite = transaction.get(campsiteRef)
+                    .toObject(Campsite::class.java)
+                    ?: throw IllegalStateException("Campsite not found.")
 
-                val collection = if (image.targetType == "profile") {
-                    Collections.USERS
-                } else {
-                    Collections.CAMPSITES
-                }
+                val rating = transaction.get(ratingRef)
+                    .toObject(Rating::class.java)
 
-                val field = if (image.targetType == "profile") {
-                    "profileImageId"
-                } else {
-                    "promoImageId"
-                }
+                if (rating != null) {
+                    check(
+                        campsite.ratingCount > 0 &&
+                                campsite.ratingSum >= rating.score
+                    ) {
+                        "Inconsistent rating totals."
+                    }
 
-                val targetRef = db.collection(collection)
-                    .document(image.targetId)
+                    transaction.delete(ratingRef)
 
-                val target = transaction.get(targetRef)
-
-                transaction.delete(imageRef)
-
-                if (target.getString(field) == imageId) {
                     transaction.update(
-                        targetRef,
+                        campsiteRef,
                         mapOf(
-                            field to null,
+                            "ratingSum" to campsite.ratingSum - rating.score,
+                            "ratingCount" to campsite.ratingCount - 1L,
                             "updatedAt" to Timestamp.now()
                         )
                     )
@@ -298,6 +319,29 @@ class AdminRepository {
                 .addOnFailureListener { onFailure(it) }
         }
     }
+
+    /**
+     * Removes an entrant's written campsite review.
+     * Does not affect the campsite's numerical rating.
+     * Requires an active admin profile.
+     */
+    fun removeReview(
+        campsiteId: String,
+        entrantId: String,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        asAdmin(onFailure) {
+            db.collection(Collections.CAMPSITES)
+                .document(campsiteId)
+                .collection(Collections.REVIEWS)
+                .document(entrantId)
+                .delete()
+                .addOnSuccessListener { onSuccess() }
+                .addOnFailureListener { onFailure(it) }
+        }
+    }
+
 
     private fun asAdmin(
         onFailure: (Exception) -> Unit,

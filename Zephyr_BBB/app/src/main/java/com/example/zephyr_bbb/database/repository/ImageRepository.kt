@@ -7,7 +7,7 @@ import com.example.zephyr_bbb.database.model.ImageRecord
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.storage.FirebaseStorage
-
+import com.google.firebase.storage.StorageException
 /**
  * Uploads images to Firebase Storage and saves image metadata in Firestore.
  * Profile images use targetType "profile".
@@ -46,7 +46,6 @@ class ImageRepository {
         fileRef.putFile(uri)
             .addOnSuccessListener { upload ->
                 val now = Timestamp.now()
-
                 val image = ImageRecord(
                     uploaderId = uid,
                     targetType = targetType,
@@ -58,21 +57,39 @@ class ImageRepository {
                     createdAt = now,
                     updatedAt = now
                 )
-
-                val batch = db.batch()
-
-                batch.set(imageRef, image)
-
-                batch.update(
-                    targetRef,
-                    mapOf(
-                        field to imageRef.id,
-                        "updatedAt" to now
+                db.runTransaction { transaction ->
+                    val target = transaction.get(targetRef)
+                    check(target.exists()) {
+                        "Image target does not exist."
+                    }
+                    val oldImageId = target.getString(field)
+                    transaction.set(imageRef, image)
+                    transaction.update(
+                        targetRef,
+                        mapOf(
+                            field to imageRef.id,
+                            "updatedAt" to now
+                        )
                     )
-                )
+                    oldImageId
+                }
+                    .addOnSuccessListener { oldImageId ->
+                        if (!oldImageId.isNullOrBlank() &&
+                            oldImageId != imageRef.id
+                        ) {
+                            deleteImage(
+                                imageId = oldImageId,
+                                onSuccess = {},
+                                onFailure = { error ->
+                                    android.util.Log.w(
+                                        "ImageRepository",
+                                        "Previous image cleanup failed.",
+                                        error
+                                    )
+                                }
+                            )
+                        }
 
-                batch.commit()
-                    .addOnSuccessListener {
                         onSuccess(imageRef.id)
                     }
                     .addOnFailureListener { error ->
@@ -132,7 +149,7 @@ class ImageRepository {
      * Deletes the stored image and its metadata.
      * Clears the profile/campsite reference if it still points
      * to this image.
-     * AdminRepository can call this for image moderation.
+     * Handles files that have already been deleted from Storage.
      */
     fun deleteImage(
         imageId: String,
@@ -149,35 +166,46 @@ class ImageRepository {
                         image.targetType,
                         image.targetId
                     )
-
                     val field = imageField(image.targetType)
                     val imageRef = imagesRef.document(imageId)
+                    fun removeMetadata() {
+                        db.runTransaction { transaction ->
+                            val target = transaction.get(targetRef)
+                            transaction.delete(imageRef)
+                            if (target.exists() &&
+                                target.getString(field) == imageId
+                            ) {
+                                transaction.update(
+                                    targetRef,
+                                    mapOf(
+                                        field to null,
+                                        "updatedAt" to Timestamp.now()
+                                    )
+                                )
+                            }
+
+                            true
+                        }
+                            .addOnSuccessListener { onSuccess() }
+                            .addOnFailureListener { onFailure(it) }
+                    }
 
                     storage.reference
                         .child(image.storagePath)
                         .delete()
                         .addOnSuccessListener {
-                            db.runTransaction { transaction ->
-                                val target = transaction.get(targetRef)
-
-                                transaction.delete(imageRef)
-
-                                if (target.getString(field) == imageId) {
-                                    transaction.update(
-                                        targetRef,
-                                        mapOf(
-                                            field to null,
-                                            "updatedAt" to Timestamp.now()
-                                        )
-                                    )
-                                }
-
-                                true
-                            }
-                                .addOnSuccessListener { onSuccess() }
-                                .addOnFailureListener { onFailure(it) }
+                            removeMetadata()
                         }
-                        .addOnFailureListener { onFailure(it) }
+                        .addOnFailureListener { error ->
+                            if (error is StorageException &&
+                                error.errorCode ==
+                                StorageException.ERROR_OBJECT_NOT_FOUND
+                            ) {
+                                removeMetadata()
+                            } else {
+                                onFailure(error)
+                            }
+                        }
                 }
             },
             onFailure = onFailure
