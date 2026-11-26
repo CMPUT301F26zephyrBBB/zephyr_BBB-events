@@ -35,7 +35,8 @@ Dates use `YYYY-MM-DD`, with checkout excluded. Missing availability dates count
 
 ## LotteryRepository
 
-There is no server-side scheduler. Winners are drawn automatically by the owner's app: `OwnerMyLotteriesScreen` and `OwnerLotteryDetailsScreen` call drawDueLotteries / drawWinners when they load and again when a registration deadline passes while they are open. A lottery whose registration has closed stays undrawn until its owner opens one of those screens.
+Automatic lottery drawing is implemented through a scheduled Firebase Cloud Function (`automaticLotteryDraw`) in `functions/index.js`. Once deployed, it checks for expired lotteries every five minutes, selects winners, updates lottery entries, and creates in-app notifications using a Firestore transaction.
+The Cloud Function has passed basic local emulator testing. Live deployment is pending Firebase Blaze activation. Until deployment, the existing owner-screen drawing functions remain available.
 
 | Function                      | Parameters         | Use                                                                     |
 |-------------------------------|--------------------|-------------------------------------------------------------------------|
@@ -86,7 +87,7 @@ Image upload, download URL retrieval, and file deletion need Firebase Storage. T
 
 | Function                      | Parameters                          | Use                                                                         |
 |-------------------------------|-------------------------------------|-----------------------------------------------------------------------------|
-| sendMessage                   | reservationId: String, body: String | Owner messages the reservation's entrant; passes message ID to onSuccess.   |
+| sendMessage                   | reservationId: String, body: String | Owner and entrant can message each other regarding a reservation; passes message ID to onSuccess.   |
 | getMyMessages                 | None                                | Get messages received by the current entrant.                               |
 | getMessagesForReservation     | reservationId: String               | Get messages about a reservation.                                           |
 | observeMessagesForReservation | reservationId: String               | Listen for reservation messages in real time; returns ListenerRegistration. |
@@ -103,14 +104,26 @@ Image upload, download URL retrieval, and file deletion need Firebase Storage. T
 
 These functions require an active profile with the admin role.
 
-| Function            | Parameters         | Use                                                                                                                                                |
-|---------------------|--------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
-| getCampsites        | None               | Browse all campsite listings.                                                                                                                      |
-| getUsers            | None               | Browse active profiles.                                                                                                                            |
-| getImages           | None               | Browse image metadata.                                                                                                                             |
-| getNotificationLogs | None               | Get all saved notification records.                                                                                                                |
-| getMessageLogs      | None               | Get all saved owner messages.                                                                                                                      |
-| removeCampsite      | campsiteId: String | Remove a listing and its lottery references. Cancel lotteries left with no campsites. Existing reservations and historical subcollections remain.  |
+| Function            | Parameters         | Use                                                                                                                                            |
+|---------------------|--------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| getCampsites        | None               | Browse all campsite listings.                                                                                                                  |
+| getUsers            | None               | Browse active profiles.                                                                                                                        |
+| getImages           | None               | Browse image metadata.                                                                                                                         |
+| getNotificationLogs | None               | Get all saved notification records.                                                                                                            |
+| getMessageLogs      | None               | Get all saved owner messages.                                                                                                                  |
+| removeCampsite      | campsiteId: String | Remove a listing and its lottery references. Cancel lotteries left with no campsites. Existing reservations and historical subcollections remain. |
 | removeProfile       | userId: String     | Mark a profile removed, clear personal details, remove owned listings, and cancel owned lotteries. Reservations, lottery entries, and logs remain. |
-| removeOwner         | ownerId: String    | Remove an owner using the same operation as removeProfile.                                                                                         |
-| removeImage         | imageId: String    | Remove image metadata and its matching reference; the actual image file remains.                                                                   |
+| removeOwner         | ownerId: String    | Remove an owner using the same operation as removeProfile.                                                                                     |
+| removeImage         | imageId: String    | Remove image metadata and its matching reference; the actual image file remains.
+| removeRating | campsiteId: String, entrantId: String | Remove an entrant's rating and atomically update the campsite's ratingSum and ratingCount. |
+| removeReview | campsiteId: String, entrantId: String | Remove an entrant's written review without affecting numerical ratings. |
+
+## ReviewRepository
+
+Reviews are stored separately from numerical ratings. Each entrant can create or update one written review per campsite. Reviews must contain 1 to 2000 characters.
+
+| Function     | Parameters                       | Use |
+|--------------|----------------------------------|-----|
+| postReview   | campsiteId: String, text: String | Create or update the current user's written campsite review. |
+| getMyReview  | campsiteId: String               | Get the current user's review; returns null if none exists. |
+| getReviews   | campsiteId: String               | Get all written reviews for a campsite. |
