@@ -35,8 +35,8 @@ Dates use `YYYY-MM-DD`, with checkout excluded. Missing availability dates count
 
 ## LotteryRepository
 
-Automatic lottery drawing is implemented through a scheduled Firebase Cloud Function (`automaticLotteryDraw`) in `functions/index.js`. Once deployed, it checks for expired lotteries every five minutes, selects winners, updates lottery entries, and creates in-app notifications using a Firestore transaction.
-The Cloud Function has passed basic local emulator testing. Live deployment is pending Firebase Blaze activation. Until deployment, the existing owner-screen drawing functions remain available.
+Automatic lottery drawing is handled by the deployed Firebase Cloud Function (`automaticLotteryDraw`) in `functions/index.js`. It is scheduled to check for expired lotteries every five minutes, select winners, update lottery entries, and create in-app notifications using Firestore transactions.
+The Cloud Function has passed local emulator testing and live draw testing. Existing client-side drawing functions remain available for compatibility.
 
 | Function                      | Parameters         | Use                                                                     |
 |-------------------------------|--------------------|-------------------------------------------------------------------------|
@@ -51,8 +51,7 @@ The Cloud Function has passed basic local emulator testing. Live deployment is p
 | leaveWaitlist                 | lotteryId: String  | Leave an undrawn lottery's waiting list.                                |
 | drawWinners                   | lotteryId: String  | Draw after registration closes; passes winner user IDs to onSuccess.    |
 | decline                       | lotteryId: String  | Decline an unused winning opportunity.                                  |
-| drawDueLotteries              | None               | Draw all of the owner's undrawn lotteries whose registration has closed; passes drawn lottery IDs to onSuccess. | <!-- [US 02.05.01] -->
-| decline                       | lotteryId: String  | Decline an unused winning opportunity.                                  |
+| drawDueLotteries              | None               | Draw all of the owner's undrawn lotteries whose registration has closed; passes drawn lottery IDs to onSuccess. | <!-- [US 02.05.01] -->|
 ## ReservationRepository
 
 | Function             | Parameters                                                                                                                 | Use                                                                                                                                                                                                                                                              |
@@ -65,7 +64,8 @@ The Cloud Function has passed basic local emulator testing. Live deployment is p
 | rejectReservation    | reservationId: String, reason: String                                                                                      | Owner rejects a confirmed reservation and releases its nights. Does not restore the used lottery opportunity.                                                                                                                                                    |
 
 ## ImageRepository
-Image upload, download URL retrieval, and file deletion need Firebase Storage. The functions are implemented but the storage is not configured.
+Firebase Storage is configured and active. Images are stored under images/{userId}/{imageId}. Uploads require an active authenticated user, an image content type, and a maximum file size of 2 MB.
+Replacing an existing image automatically attempts to delete the previous Storage file and Firestore metadata. Image upload, replacement, and admin deletion have been successfully tested against the live Firebase project.
 
 | Function    | Parameters                                     | Use                                                                                            |
 |-------------|------------------------------------------------|------------------------------------------------------------------------------------------------|
@@ -114,7 +114,7 @@ These functions require an active profile with the admin role.
 | removeCampsite      | campsiteId: String | Remove a listing and its lottery references. Cancel lotteries left with no campsites. Existing reservations and historical subcollections remain. |
 | removeProfile       | userId: String     | Mark a profile removed, clear personal details, remove owned listings, and cancel owned lotteries. Reservations, lottery entries, and logs remain. |
 | removeOwner         | ownerId: String    | Remove an owner using the same operation as removeProfile.                                                                                     |
-| removeImage         | imageId: String    | Remove image metadata and its matching reference; the actual image file remains.
+| removeImage | imageId: String | Delete the Firebase Storage file and Firestore metadata, and clear the matching profile or campsite image reference. |
 | removeRating | campsiteId: String, entrantId: String | Remove an entrant's rating and atomically update the campsite's ratingSum and ratingCount. |
 | removeReview | campsiteId: String, entrantId: String | Remove an entrant's written review without affecting numerical ratings. |
 
