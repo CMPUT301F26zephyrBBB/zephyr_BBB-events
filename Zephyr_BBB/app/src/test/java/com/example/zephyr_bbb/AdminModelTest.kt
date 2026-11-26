@@ -10,6 +10,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.example.zephyr_bbb.admin.stars
+import com.example.zephyr_bbb.database.model.Rating
+import com.example.zephyr_bbb.database.model.Review
 
 // unit tests for the models shown on the admin screens
 class AdminModelTest {
@@ -192,5 +195,65 @@ class AdminModelTest {
         assertEquals(1L, lottery.winnerCount)
         assertEquals(0L, lottery.entryCount)
         assertNull(lottery.waitlistCapacity)
+    }
+
+    // new ratings default to one star
+    @Test
+    fun newRatingDefaultsToOneStar() {
+        val rating = Rating(id = "uid-faizaan")
+
+        assertEquals(1L, rating.score)
+        assertEquals("", rating.reservationId)
+        assertNull(rating.createdAt)
+    }
+
+    // rating keeps who rated and the score shown to the admin
+    @Test
+    fun ratingKeepsEntrantAndScore() {
+        val rating = Rating(
+            id = "uid-manroj",
+            entrantId = "uid-manroj",
+            score = 4
+        )
+
+        assertEquals("uid-manroj", rating.entrantId)
+        assertEquals(4L, rating.score)
+    }
+
+    // new reviews start empty
+    @Test
+    fun newReviewStartsEmpty() {
+        val review = Review(id = "uid-faizaan")
+
+        assertEquals("", review.text)
+        assertEquals("", review.entrantId)
+        assertNull(review.createdAt)
+    }
+
+    // review keeps who wrote it and its text
+    @Test
+    fun reviewKeepsAuthorAndText() {
+        val review = Review(
+            id = "uid-manroj",
+            entrantId = "uid-manroj",
+            text = "Great lake view, very quiet at night."
+        )
+
+        assertEquals("uid-manroj", review.entrantId)
+        assertEquals("Great lake view, very quiet at night.", review.text)
+    }
+
+    // stars shows filled stars for the score and empty for the rest
+    @Test
+    fun starsShowsScoreOutOfFive() {
+        assertEquals("★★★☆☆", stars(3))
+        assertEquals("★★★★★", stars(5))
+    }
+
+    // stars clamps scores outside 0 to 5
+    @Test
+    fun starsClampsOutOfRangeScores() {
+        assertEquals("★★★★★", stars(9))
+        assertEquals("☆☆☆☆☆", stars(-2))
     }
 }
