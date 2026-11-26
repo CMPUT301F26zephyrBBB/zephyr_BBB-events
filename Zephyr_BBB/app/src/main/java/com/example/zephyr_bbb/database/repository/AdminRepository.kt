@@ -16,8 +16,10 @@ import com.example.zephyr_bbb.database.model.Rating
  * Handles admin browsing, moderation and communication logs.
  * Removed profiles are marked "removed".
  * Reservation and communication history is preserved.
- * Image removal only clears Firestore metadata/references.
- * Actual image-file removal remains deferred with Storage setup.
+ * Supports moderation of ratings, reviews and images.
+ * Image removal deletes the Firebase Storage file and Firestore
+ * metadata, and clears the associated campsite or profile image
+ * reference when it matches the removed image.
  */
 class AdminRepository {
 
@@ -247,8 +249,9 @@ class AdminRepository {
     }
 
     /**
-     * Removes image metadata and its profile/campsite reference.
-     * Does not delete a Storage file while image uploads are deferred.
+     * Removes an image from Firebase Storage and Firestore.
+     * Clears its matching profile or campsite image reference.
+     * Requires an active admin profile.
      */
     fun removeImage(
         imageId: String,
@@ -256,49 +259,13 @@ class AdminRepository {
         onFailure: (Exception) -> Unit
     ) {
         asAdmin(onFailure) {
-            val imageRef = db.collection(Collections.IMAGES)
-                .document(imageId)
-
-            db.runTransaction { transaction ->
-                val image = transaction.get(imageRef)
-                    .toObject(ImageRecord::class.java)!!
-
-                val collection = if (image.targetType == "profile") {
-                    Collections.USERS
-                } else {
-                    Collections.CAMPSITES
-                }
-
-                val field = if (image.targetType == "profile") {
-                    "profileImageId"
-                } else {
-                    "promoImageId"
-                }
-
-                val targetRef = db.collection(collection)
-                    .document(image.targetId)
-
-                val target = transaction.get(targetRef)
-
-                transaction.delete(imageRef)
-
-                if (target.getString(field) == imageId) {
-                    transaction.update(
-                        targetRef,
-                        mapOf(
-                            field to null,
-                            "updatedAt" to Timestamp.now()
-                        )
-                    )
-                }
-
-                true
-            }
-                .addOnSuccessListener { onSuccess() }
-                .addOnFailureListener { onFailure(it) }
+            ImageRepository().deleteImage(
+                imageId = imageId,
+                onSuccess = onSuccess,
+                onFailure = onFailure
+            )
         }
     }
-
     /**
      * Removes an entrant's campsite rating.
      * Updates the campsite's rating totals atomically.

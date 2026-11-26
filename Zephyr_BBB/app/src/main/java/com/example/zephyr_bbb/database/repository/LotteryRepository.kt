@@ -15,10 +15,13 @@ import android.util.Log
  * Lotteries: lotteries/{lotteryId}
  * Entries: lotteries/{lotteryId}/entries/{entrantId}
  * Call after sign-in. Dates supplied by screens use YYYY-MM-DD.
- * Automatic scheduling is handled separately.
+ * Automatic lottery draws are handled by the deployed Firebase Cloud
+ * Function automaticLotteryDraw, scheduled to run every five minutes.
+ * Eligible lotteries are drawn without requiring owner interaction.
+ * Winners and unsuccessful entrants receive in-app notifications
+ * when notifications are enabled.
  * Draw transactions are intended for small classroom waitlists.
- * There is no server-side scheduler: drawDueLotteries draws an owner's lotteries from the app
- * once their registration period has ended.
+ * Client-side draw methods are retained for compatibility.
  */
 class LotteryRepository {
     private companion object {
