@@ -536,12 +536,13 @@ fun AdminCampsiteScreen(
 /**
  * Turns a 1–5 score into filled and empty stars, e.g. 3 becomes "★★★☆☆".
  * Scores outside 0 to 5 are clamped so the row always has five stars.
- * Therefore, anything before 0 becomes 0, anything after 5 becomes 5.
+ * Therefore, anything below 0 becomes 0, anything above 5 becomes 5.
  *
  * @param score the rating score
  * @return five star characters
  */
 fun stars(score: Long): String {
     val filled = score.coerceIn(0L, 5L).toInt()
-    return "★".repeat(filled) + "☆".repeat(5 - filled)
+    return "\u2605".repeat(filled) + "\u2606".repeat(5 - filled)
+    // \u2605 is a filled star, \u2606 is an empty star
 }
