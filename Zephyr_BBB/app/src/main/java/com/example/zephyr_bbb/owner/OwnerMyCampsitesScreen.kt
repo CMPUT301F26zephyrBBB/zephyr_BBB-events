@@ -1,6 +1,7 @@
 package com.example.zephyr_bbb.owner
 
 
+import android.R.attr.data
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
@@ -23,10 +26,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import coil.compose.rememberImagePainter
+import com.example.zephyr_bbb.R
 import com.example.zephyr_bbb.database.model.Campsite
 import com.example.zephyr_bbb.database.repository.CampsiteRepository
+import com.example.zephyr_bbb.database.repository.ImageRepository
 import com.example.zephyr_bbb.generateQRCode
 import kotlin.collections.emptyList
 
@@ -82,11 +90,30 @@ fun OwnerMyCampsitesScreen(
         val qrBitmap = remember(campsite.id){
             generateQRCode(campsite.id)
         }
+        var imageUrl by remember(campsite.promoImageId){
+            mutableStateOf<String?>("")
+        }
+
+        LaunchedEffect(campsite.promoImageId) {
+            val imageId = campsite.promoImageId
+            if (!imageId.isNullOrBlank()){
+                ImageRepository().getImageUrl(
+                    imageId = imageId,
+                    onSuccess = {url->
+                        imageUrl = url
+                    },
+                    onFailure = {}
+                )
+            } else{
+                imageUrl = ""
+            }
+        }
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -96,6 +123,22 @@ fun OwnerMyCampsitesScreen(
                 }
             ) {
                 Text("<")
+            }
+            // Knowledge of how to use Image is cited in Seth'sCitations.txt in the doc folder.
+            if (!imageUrl.isNullOrBlank()) {
+                Image(
+                    painter = rememberImagePainter(
+                        data = imageUrl,
+                        builder ={
+                            crossfade(false)
+                            placeholder(R.drawable.tent)
+
+                        }
+                    ),
+                    contentDescription = "Image for ${campsite.name}",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(200.dp)
+                )
             }
             Text("Campsite Details")
             Text("Name: ${campsite.name}")

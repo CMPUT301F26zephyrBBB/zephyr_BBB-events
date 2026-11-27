@@ -29,7 +29,7 @@ class OwnerAddCampsiteScreenTest {
             )
         }
         composeTestRule.onNodeWithText("Add Campsite").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Back").assertIsDisplayed()
+        composeTestRule.onNodeWithText("<").assertIsDisplayed()
         composeTestRule.onNodeWithText("Enter Campsite Name").assertIsDisplayed()
         composeTestRule.onNodeWithText("Enter Campsite Location").assertIsDisplayed()
         composeTestRule.onNodeWithText("Enter Campsite Description").assertIsDisplayed()
@@ -44,7 +44,7 @@ class OwnerAddCampsiteScreenTest {
                 onBackClick = { backClicked = true }
             )
         }
-        composeTestRule.onNodeWithText("Back").performClick()
+        composeTestRule.onNodeWithText("<").performClick()
         assertTrue(backClicked)
     }
 

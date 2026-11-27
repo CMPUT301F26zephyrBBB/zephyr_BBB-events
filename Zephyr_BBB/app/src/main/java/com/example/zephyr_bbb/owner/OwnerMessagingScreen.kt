@@ -39,29 +39,29 @@ import com.example.zephyr_bbb.database.repository.MessageRepository
 fun OwnerMessagingScreen(
     reservationId: String,
     onBackClick: () -> Unit
-){
-    val messageRepository = remember{
+) {
+    val messageRepository = remember {
         MessageRepository()
     }
-    var messages by remember{
+    var messages by remember {
         mutableStateOf<List<OwnerMessage>>(emptyList())
     }
-    var messageBody by remember{
+    var messageBody by remember {
         mutableStateOf("")
     }
-    var errorMessage by remember{
+    var errorMessage by remember {
         mutableStateOf<String?>(null)
     }
     // Knowledge of DisposableEffect came from Google Gemini and Android Developers, Details in SethCitations.txt
     // Updates the messages in real time, and when the function is stopped the messages are no
     // longer updated until the function is called again.
-    DisposableEffect(reservationId){
+    DisposableEffect(reservationId) {
         val listener = messageRepository.observeMessagesForReservation(
             reservationId = reservationId,
-            onSuccess = {fetched->
+            onSuccess = { fetched ->
                 messages = fetched
             },
-            onFailure = {error->
+            onFailure = { error ->
                 errorMessage = error.message
             }
         )
@@ -69,6 +69,38 @@ fun OwnerMessagingScreen(
             listener.remove()
         }
     }
+    OwnerMessageContent(
+        messages =messages,
+        messageBody = messageBody,
+        errorMessage = errorMessage,
+        onMessageBodyChange = { messageBody = it },
+        onBackClick = onBackClick,
+        onSendMessage = {
+            messageRepository.sendMessage(
+                reservationId = reservationId,
+                body = messageBody,
+                onSuccess = {
+                    messageBody = ""
+                    errorMessage = null
+                },
+                onFailure = {error->
+                    errorMessage = error.message
+                }
+            )
+        }
+
+    )
+}
+
+@Composable
+fun OwnerMessageContent(
+    messages: List<OwnerMessage>,
+    messageBody: String,
+    errorMessage: String?,
+    onMessageBodyChange: (String) -> Unit,
+    onBackClick: () -> Unit,
+    onSendMessage: () -> Unit
+){
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -120,24 +152,12 @@ fun OwnerMessagingScreen(
         ){
             OutlinedTextField(
                 value = messageBody,
-                onValueChange = {messageBody = it},
+                onValueChange = onMessageBodyChange,
                 modifier = Modifier.weight(1f),
                 placeholder = {Text("message")}
             )
             Button(
-                onClick = {
-                    messageRepository.sendMessage(
-                        reservationId = reservationId,
-                        body = messageBody,
-                        onSuccess = {
-                            messageBody = ""
-                            errorMessage = null
-                        },
-                        onFailure = {error->
-                            errorMessage = error.message
-                        }
-                    )
-                }
+                onClick = onSendMessage
             ){
                 Text("Send")
             }
