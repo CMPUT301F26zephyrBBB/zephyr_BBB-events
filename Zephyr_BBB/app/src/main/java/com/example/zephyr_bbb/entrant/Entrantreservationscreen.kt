@@ -51,6 +51,10 @@ fun EntrantReservationsScreen(
                 onFailure = { errorMessage = it.message; isLoading = false }
             )
         }
+        val today = millisToIsoDate(System.currentTimeMillis())
+        val active = reservations.filter {it.status == "confirmed"  && it.checkOutDate > today }
+        val past = reservations.filter { it !in active }
+
 
         Column(Modifier.fillMaxSize().padding(16.dp)) {
             Text("Reservations", style = MaterialTheme.typography.headlineMedium)
@@ -66,22 +70,37 @@ fun EntrantReservationsScreen(
                 errorMessage != null -> Text(errorMessage ?: "", color = MaterialTheme.colorScheme.error)
                 reservations.isEmpty() -> Text("No reservations yet. Win a lottery to book a stay.")
                 else -> LazyColumn {
-                    items(reservations, key = { it.id }) { r ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .clickable { onReservationClick(r.id) }
-                        ) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text("${r.checkInDate} to ${r.checkOutDate}", style = MaterialTheme.typography.titleMedium)
-                                Text("Guests: ${r.guestCount} · Status: ${r.status}")
-                            }
-                        }
+                    item { Text("Active", style = MaterialTheme.typography.titleMedium) }
+
+                    items(active, key = {it.id}){ r ->
+                        ReservationCard(r, onClick = { onReservationClick(r.id) })
+                    }
+                    item { Text("Past", style = MaterialTheme.typography.titleMedium) }
+                    items(past, key = {it.id}){ r ->
+                        ReservationCard(r, onClick = { onReservationClick(r.id) })
+
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+fun ReservationCard(r: Reservation, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable { onClick() }
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Text("${r.checkInDate} to ${r.checkOutDate}", style = MaterialTheme.typography.titleMedium)
+            Text("Guests: ${r.guestCount} · Status: ${r.status}")
+        }
+    }
+
+
+
 }
 
