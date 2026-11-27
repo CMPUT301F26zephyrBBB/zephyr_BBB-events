@@ -116,6 +116,9 @@ fun CustomNavigationBar(
                     },
                     onScanClick = {
                         navController.navigate("qr_scan")
+                    },
+                    onProfileClick = {
+                        navController.navigate("profile")
                     }
                 )
             }
@@ -177,14 +180,8 @@ fun CustomNavigationBar(
 
             composable("reservations") {
                 EntrantReservationsScreen(
-                    onProfileClick = {
-                        navController.navigate("profile")
-                    },
                     onNotificationsClick = {
                         navController.navigate("notifications")
-                    },
-                    onPolicyClick = {
-                        navController.navigate("app_policy")
                     },
                     onReservationClick = { reservationId ->
                         navController.navigate("confirmation/$reservationId")
@@ -198,6 +195,9 @@ fun CustomNavigationBar(
                 ProfileScreen(
                     onBackClick = {
                         navController.popBackStack()
+                    },
+                    onPolicyClick = {
+                        navController.navigate("app_policy")
                     }
                 )
             }

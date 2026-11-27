@@ -23,7 +23,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-// ui tests for the entrant profile screen (US 01.07.03, US 01.10.01)
+// ui tests for the entrant profile screen (US 01.07.03, US 01.10.01, US 01.11.01)
 @RunWith(AndroidJUnit4::class)
 class ProfileScreenTest {
 
@@ -33,6 +33,7 @@ class ProfileScreenTest {
     // the value passed to the toggle callback, null if it was never called
     private var toggledTo: Boolean? = null
     private var dialogDismissed = false
+    private var policyClicked = false
 
     // shows the profile content with fake data and records the callbacks
     private fun showProfile(
@@ -57,6 +58,7 @@ class ProfileScreenTest {
                 onNotificationsToggle = { toggledTo = it },
                 showNotificationsOffDialog = showNotificationsOffDialog,
                 onDismissNotificationsOffDialog = { dialogDismissed = true },
+                onPolicyClick = { policyClicked = true },
                 onBackClick = {}
             )
         }
@@ -153,10 +155,19 @@ class ProfileScreenTest {
                 onNotificationsToggle = {},
                 showNotificationsOffDialog = showDialog,
                 onDismissNotificationsOffDialog = { showDialog = false },
+                onPolicyClick = {},
                 onBackClick = {}
             )
         }
         composeTestRule.onNodeWithText("OK").performClick()
         composeTestRule.onNodeWithText("Push notifications turned off").assertDoesNotExist()
+    }
+
+    // the policy link is at the bottom of the profile and opens the policy
+    @Test
+    fun policyLinkOpensPolicy() {
+        showProfile()
+        composeTestRule.onNodeWithText("App policy and guidelines").performScrollTo().performClick()
+        assertTrue(policyClicked)
     }
 }

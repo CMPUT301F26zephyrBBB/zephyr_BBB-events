@@ -1,9 +1,7 @@
 package com.example.zephyr_bbb.entrant
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,20 +25,16 @@ import com.example.zephyr_bbb.database.model.Reservation
 import com.example.zephyr_bbb.database.repository.ReservationRepository
 
 /**
- * The Reservations tab: links to the profile, notifications and the
- * app policy and guidelines, and lists the entrant's reservations.
- * US 01.11.01 (app policy link).
+ * The Reservations tab: links to notifications and lists the entrant's
+ * reservations. The profile (and the app policy inside it) is opened from
+ * the icon on the Home screen.
  *
- * @param onProfileClick is invoked when the user clicks My profile
  * @param onNotificationsClick is invoked when the user clicks Notifications
- * @param onPolicyClick is invoked when the user clicks App policy and guidelines
  * @param onReservationClick is invoked with a reservation's id when the user clicks it
  */
 @Composable
 fun EntrantReservationsScreen(
-    onProfileClick: () -> Unit,
     onNotificationsClick: () -> Unit,
-    onPolicyClick: () -> Unit,
     onReservationClick: (reservationId: String) -> Unit
 ) {
     DeviceIdentityGate {
@@ -62,11 +56,7 @@ fun EntrantReservationsScreen(
         Column(Modifier.fillMaxSize().padding(16.dp)) {
             Text("Reservations", style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onProfileClick) { Text("My profile") }
-                OutlinedButton(onClick = onNotificationsClick) { Text("Notifications") }
-            }
-            OutlinedButton(onClick = onPolicyClick) { Text("App policy and guidelines") }
+            OutlinedButton(onClick = onNotificationsClick) { Text("Notifications") }
             Spacer(Modifier.height(12.dp))
 
             when {
