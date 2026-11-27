@@ -101,13 +101,12 @@ fun ReserveScreen(
             availabilityRepository.getAvailability(
                 campsite.id,
                 onSuccess = { days ->
-                    // A night must be before stayEndDate, because checkout
-                    // is the next day and can't be after stayEndDate.
-                    openNights = days
-                        .filter { it.status == "open" }
-                        .map { it.date }
-                        .filter { it >= currentLottery.stayStartDate && it < currentLottery.stayEndDate }
-                        .sorted()
+                    // Every night in the lottery's stay period is open unless it is
+                    // already reserved or the owner blocked it. The stay end date is
+                    // checkout, so the last night is the day before it.
+                    val closed = days.filter { it.status != "open" }.map { it.date }.toSet()
+                    openNights = EntrantUtils.nightsBetween(currentLottery.stayStartDate, currentLottery.stayEndDate)
+                        .filter { it < currentLottery.stayEndDate && it !in closed }
                     isLoadingNights = false
                 },
                 onFailure = { errorMessage = it.message; isLoadingNights = false }
