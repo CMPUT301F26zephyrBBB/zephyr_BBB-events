@@ -35,6 +35,7 @@ import com.example.zephyr_bbb.entrant.CampsiteDetailsScreen
 import com.example.zephyr_bbb.entrant.CampsiteDetailsViewModel
 import com.example.zephyr_bbb.entrant.CampsiteFilterScreen
 import com.example.zephyr_bbb.entrant.CampsiteSearchViewModel
+import com.example.zephyr_bbb.entrant.AppPolicyScreen
 import com.example.zephyr_bbb.entrant.QrScanScreen
 import com.example.zephyr_bbb.entrant.EntrantReservationsScreen
 import com.example.zephyr_bbb.entrant.NotificationsScreen
@@ -182,6 +183,9 @@ fun CustomNavigationBar(
                     onNotificationsClick = {
                         navController.navigate("notifications")
                     },
+                    onPolicyClick = {
+                        navController.navigate("app_policy")
+                    },
                     onReservationClick = { reservationId ->
                         navController.navigate("confirmation/$reservationId")
                     }
@@ -208,6 +212,14 @@ fun CustomNavigationBar(
                     },
                     onReservationClick = { reservationId ->
                         navController.navigate("confirmation/$reservationId")
+                    }
+                )
+            }
+
+            composable("app_policy") {
+                AppPolicyScreen(
+                    onBackClick = {
+                        navController.popBackStack()
                     }
                 )
             }
