@@ -9,6 +9,7 @@ import com.example.zephyr_bbb.database.model.LotteryEntry
 import com.example.zephyr_bbb.database.model.Reservation
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -151,7 +152,8 @@ class ReservationRepository {
                 "Guest count exceeds the campsite's capacity."
             }
 
-            check(days.all { it.getString("status") == "open" }) {
+            // A night with no availability document counts as open.
+            check(days.all { !it.exists() || it.getString("status") == "open" }) {
                 "One or more nights are no longer available."
             }
 
@@ -175,14 +177,17 @@ class ReservationRepository {
 
             transaction.set(reservationRef, reservation)
 
-            dayRefs.forEach { dayRef ->
-                transaction.update(
+            // set + merge creates the night's document if the owner never made one.
+            dayRefs.zip(nights).forEach { (dayRef, date) ->
+                transaction.set(
                     dayRef,
                     mapOf(
+                        "date" to date,
                         "status" to "reserved",
                         "reservationId" to reservationRef.id,
                         "updatedAt" to now
-                    )
+                    ),
+                    SetOptions.merge()
                 )
             }
 
