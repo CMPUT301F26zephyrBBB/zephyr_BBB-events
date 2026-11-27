@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -34,16 +35,18 @@ import com.example.zephyr_bbb.database.repository.UserRepository
 internal const val NOTIFICATIONS_SWITCH_TAG = "notificationsSwitch"
 
 /**
- * Lets the entrant view and edit their profile (name, email, phone) and
- * opt out of receiving notifications. US 01.07.03, US 01.10.01.
+ * Lets the entrant view and edit their profile (name, email, phone),
+ * opt out of receiving notifications, and open the app policy and guidelines.
+ * US 01.07.03, US 01.10.01, US 01.11.01.
  *
  * This is the stateful wrapper: it loads the signed-in user, talks to
  * [UserRepository], and passes plain values down to [ProfileContent].
  *
  * @param onBackClick is invoked when the user clicks the back button
+ * @param onPolicyClick is invoked when the user clicks App policy and guidelines
  */
 @Composable
-fun ProfileScreen(onBackClick: () -> Unit) {
+fun ProfileScreen(onBackClick: () -> Unit, onPolicyClick: () -> Unit) {
     DeviceIdentityGate { user ->
         val userRepository = remember { UserRepository() }
 
@@ -114,6 +117,7 @@ fun ProfileScreen(onBackClick: () -> Unit) {
             },
             showNotificationsOffDialog = showNotificationsOffDialog,
             onDismissNotificationsOffDialog = { showNotificationsOffDialog = false },
+            onPolicyClick = onPolicyClick,
             onBackClick = onBackClick
         )
     }
@@ -121,7 +125,7 @@ fun ProfileScreen(onBackClick: () -> Unit) {
 
 /**
  * The profile screen's UI with no Firebase access, so it can be tested on its own.
- * US 01.07.03, US 01.10.01.
+ * US 01.07.03, US 01.10.01, US 01.11.01.
  *
  * @param name the name currently in the name field
  * @param onNameChange is invoked when the user edits the name
@@ -138,6 +142,7 @@ fun ProfileScreen(onBackClick: () -> Unit) {
  * @param onNotificationsToggle is invoked with the new value when the user flips the switch
  * @param showNotificationsOffDialog true to show the "notifications turned off" dialog
  * @param onDismissNotificationsOffDialog is invoked when the user closes that dialog
+ * @param onPolicyClick is invoked when the user clicks App policy and guidelines
  * @param onBackClick is invoked when the user clicks the back button
  */
 @Composable
@@ -157,6 +162,7 @@ internal fun ProfileContent(
     onNotificationsToggle: (Boolean) -> Unit,
     showNotificationsOffDialog: Boolean,
     onDismissNotificationsOffDialog: () -> Unit,
+    onPolicyClick: () -> Unit,
     onBackClick: () -> Unit
 ) {
     val canSave = name.isNotBlank() && !isSaving
@@ -235,6 +241,10 @@ internal fun ProfileContent(
 
         message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
         errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
+        // Policy link sits at the bottom, like the legal links in most apps' account screens
+        HorizontalDivider()
+        TextButton(onClick = onPolicyClick) { Text("App policy and guidelines") }
     }
 
     if (showNotificationsOffDialog) {
