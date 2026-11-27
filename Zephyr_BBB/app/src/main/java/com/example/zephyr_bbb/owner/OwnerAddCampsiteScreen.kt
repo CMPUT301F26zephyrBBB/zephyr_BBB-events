@@ -5,12 +5,14 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,8 +28,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import coil.compose.rememberImagePainter
+import com.example.zephyr_bbb.R
 import com.example.zephyr_bbb.database.model.Campsite
 import com.example.zephyr_bbb.database.repository.CampsiteRepository
 import com.example.zephyr_bbb.database.repository.ImageRepository
@@ -93,12 +98,15 @@ fun OwnerAddCampsiteScreen(
     var isLoading by remember {
         mutableStateOf(true)
     }
+    var imageUrl by remember{
+        mutableStateOf("")
+    }
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
-    ) {
-            uri: Uri? -> selectedImageUri = uri
+    ) { uri: Uri? ->
+        selectedImageUri = uri
+        imageUrl = uri.toString()
     }
-
     // Gets the campsite owners user id for the creation of the campsite
     LaunchedEffect(Unit) {
         try {
@@ -204,6 +212,21 @@ fun OwnerAddCampsiteScreen(
             label = {Text("Enter Campsite Cancellation Policy")},
             modifier = Modifier.fillMaxWidth()
         )
+        // Knowledge of how to use Image is cited in Seth'sCitations.txt in the doc folder.
+        if (!imageUrl.isNullOrBlank()) {
+            Image(
+                painter = rememberImagePainter(
+                    data = imageUrl,
+                    builder ={
+                        crossfade(false)
+                        placeholder(R.drawable.tent)
+                    }
+                ),
+                contentDescription = "Image for $campsiteName",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(200.dp)
+            )
+        }
         // A button to get an Image From
         // Knowledge came of imagePickerLauncher and rememberLauncherForActivityResult cited in SethCitations.txt
         Button(

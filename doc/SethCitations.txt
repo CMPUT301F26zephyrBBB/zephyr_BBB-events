@@ -104,3 +104,32 @@ Date Published - 2026-11-10
 Google Gemini
 Idea to use DisposableEffect came from Google Gemini which I then did some looking into DisposableEffect by going to the Android Developers Website linked above. Code that Google Gemini output was used as a basis but modified quite a bit to fit my use case. Used the following input "how do i get my messaging feature in my app to update automatically whenever a message is sent. Using android studio and kotlin and firebase and LaunchedEffect" 
 Date 2026-11-22
+
+
+Stack Overflow
+Used in OwnerMyCampsites.kt
+Used to figure out how to display images
+How to display images in jetpack compose, using coil library. I adapted the code to work for my situation.
+
+Code used in the gradle file
+
+implementation("io.coil-kt:coil-compose:1.3.2")
+
+Code used in the actual .kt files
+Image(
+    painter = rememberImagePainter(
+        data = imageUrl,
+        builder = {
+            crossfade(false)
+            placeholder(R.drawable.placeholder)
+        }
+    ),
+    contentDescription = "description",
+    contentScale = ContentScale.Crop
+)
+
+URL - https://stackoverflow.com/a/69153044
+
+License - https://creativecommons.org/licenses/by-sa/4.0/legalcode.en
+Date Published - September 12, 2021, by S Haque
+Date Edited - December 31, 2021, by Peter Mortensen
