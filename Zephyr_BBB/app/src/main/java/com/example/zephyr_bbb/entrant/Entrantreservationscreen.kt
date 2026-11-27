@@ -27,13 +27,20 @@ import com.example.zephyr_bbb.database.model.Reservation
 import com.example.zephyr_bbb.database.repository.ReservationRepository
 
 /**
- * The Reservations tab: links to the profile and notifications,
- * and lists the entrant's reservations.
+ * The Reservations tab: links to the profile, notifications and the
+ * app policy and guidelines, and lists the entrant's reservations.
+ * US 01.11.01 (app policy link).
+ *
+ * @param onProfileClick is invoked when the user clicks My profile
+ * @param onNotificationsClick is invoked when the user clicks Notifications
+ * @param onPolicyClick is invoked when the user clicks App policy and guidelines
+ * @param onReservationClick is invoked with a reservation's id when the user clicks it
  */
 @Composable
 fun EntrantReservationsScreen(
     onProfileClick: () -> Unit,
     onNotificationsClick: () -> Unit,
+    onPolicyClick: () -> Unit,
     onReservationClick: (reservationId: String) -> Unit
 ) {
     DeviceIdentityGate {
@@ -59,6 +66,7 @@ fun EntrantReservationsScreen(
                 OutlinedButton(onClick = onProfileClick) { Text("My profile") }
                 OutlinedButton(onClick = onNotificationsClick) { Text("Notifications") }
             }
+            OutlinedButton(onClick = onPolicyClick) { Text("App policy and guidelines") }
             Spacer(Modifier.height(12.dp))
 
             when {
