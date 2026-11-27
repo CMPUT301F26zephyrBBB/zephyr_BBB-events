@@ -35,6 +35,7 @@ import com.example.zephyr_bbb.entrant.CampsiteDetailsScreen
 import com.example.zephyr_bbb.entrant.CampsiteDetailsViewModel
 import com.example.zephyr_bbb.entrant.CampsiteFilterScreen
 import com.example.zephyr_bbb.entrant.CampsiteSearchViewModel
+import com.example.zephyr_bbb.entrant.AppPolicyScreen
 import com.example.zephyr_bbb.entrant.QrScanScreen
 import com.example.zephyr_bbb.entrant.EntrantReservationsScreen
 import com.example.zephyr_bbb.entrant.NotificationsScreen
@@ -115,6 +116,9 @@ fun CustomNavigationBar(
                     },
                     onScanClick = {
                         navController.navigate("qr_scan")
+                    },
+                    onProfileClick = {
+                        navController.navigate("profile")
                     }
                 )
             }
@@ -176,9 +180,6 @@ fun CustomNavigationBar(
 
             composable("reservations") {
                 EntrantReservationsScreen(
-                    onProfileClick = {
-                        navController.navigate("profile")
-                    },
                     onNotificationsClick = {
                         navController.navigate("notifications")
                     },
@@ -194,6 +195,9 @@ fun CustomNavigationBar(
                 ProfileScreen(
                     onBackClick = {
                         navController.popBackStack()
+                    },
+                    onPolicyClick = {
+                        navController.navigate("app_policy")
                     }
                 )
             }
@@ -208,6 +212,14 @@ fun CustomNavigationBar(
                     },
                     onReservationClick = { reservationId ->
                         navController.navigate("confirmation/$reservationId")
+                    }
+                )
+            }
+
+            composable("app_policy") {
+                AppPolicyScreen(
+                    onBackClick = {
+                        navController.popBackStack()
                     }
                 )
             }
