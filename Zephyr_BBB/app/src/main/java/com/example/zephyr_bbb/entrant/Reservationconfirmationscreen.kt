@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,12 +25,19 @@ import com.example.zephyr_bbb.database.repository.CampsiteRepository
 import com.example.zephyr_bbb.database.repository.ReservationRepository
 
 /**
- * Shows a booked reservation's details. US 01.05.01.
+ * Shows a booked reservation's details, with a button to message the campsite owner.
+ * US 01.05.01, US 01.14.01.
+ *
+ * @param reservationId the reservation to show
+ * @param onDoneClick is invoked when the user clicks Done
+ * @param onMessageOwnerClick is invoked with the reservation's id when the user
+ * clicks Message owner
  */
 @Composable
 fun ReservationConfirmationScreen(
     reservationId: String,
-    onDoneClick: () -> Unit
+    onDoneClick: () -> Unit,
+    onMessageOwnerClick: (reservationId: String) -> Unit = {}
 ) {
     DeviceIdentityGate {
         val reservationRepository = remember { ReservationRepository() }
@@ -81,6 +89,14 @@ fun ReservationConfirmationScreen(
             }
 
             errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
+            // Only once the reservation has loaded, since messages are tied to it
+            if (r != null) {
+                OutlinedButton(
+                    onClick = { onMessageOwnerClick(r.id) },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Message owner") }
+            }
 
             Button(onClick = onDoneClick, modifier = Modifier.fillMaxWidth()) { Text("Done") }
         }

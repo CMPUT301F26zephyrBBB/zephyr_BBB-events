@@ -139,6 +139,67 @@ class MessageRepository {
             }
     }
 
+    /**
+     * Listens in real time for the current user's messages about a reservation:
+     * the ones they sent and the ones they received, merged oldest first.
+     * Uses two queries filtered by the current user, which the security rules allow
+     * for either participant. Waits for both before the first update so the
+     * conversation doesn't flicker in half at a time.
+     * Call remove() on the listener when leaving the screen.
+     */
+    fun observeMyMessagesForReservation(
+        reservationId: String,
+        onSuccess: (List<OwnerMessage>) -> Unit,
+        onFailure: (Exception) -> Unit
+    ): ListenerRegistration {
+        val uid = FirebaseProvider.requireUid()
+        val forReservation = messagesRef.whereEqualTo("reservationId", reservationId)
+
+        var sent: List<OwnerMessage>? = null
+        var received: List<OwnerMessage>? = null
+
+        fun publish() {
+            val mine = sent ?: return
+            val theirs = received ?: return
+            onSuccess(
+                (mine + theirs)
+                    .distinctBy { it.id }
+                    .sortedBy { it.createdAt }
+            )
+        }
+
+        val sentListener = forReservation
+            .whereEqualTo("senderId", uid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    onFailure(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    sent = readMessages(snapshot)
+                    publish()
+                }
+            }
+
+        val receivedListener = forReservation
+            .whereEqualTo("recipientId", uid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    onFailure(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    received = readMessages(snapshot)
+                    publish()
+                }
+            }
+
+        return ListenerRegistration {
+            sentListener.remove()
+            receivedListener.remove()
+        }
+    }
+
     private fun readMessages(
         snapshot: QuerySnapshot
     ): List<OwnerMessage> {
