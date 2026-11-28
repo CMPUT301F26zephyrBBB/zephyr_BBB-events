@@ -17,13 +17,14 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.zephyr_bbb.entrant.NOTIFICATIONS_SWITCH_TAG
 import com.example.zephyr_bbb.entrant.ProfileContent
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-// ui tests for the entrant profile screen (US 01.07.03, US 01.10.01, US 01.11.01)
+// ui tests for the entrant profile screen (US 01.07.03, US 01.08.01, US 01.10.01, US 01.11.01)
 @RunWith(AndroidJUnit4::class)
 class ProfileScreenTest {
 
@@ -34,12 +35,17 @@ class ProfileScreenTest {
     private var toggledTo: Boolean? = null
     private var dialogDismissed = false
     private var policyClicked = false
+    private var deleteClicked = false
+    private var deleteConfirmed = false
+    private var deleteDismissed = false
 
     // shows the profile content with fake data and records the callbacks
     private fun showProfile(
         notificationsEnabled: Boolean = true,
         notificationsToggleEnabled: Boolean = true,
-        showNotificationsOffDialog: Boolean = false
+        showNotificationsOffDialog: Boolean = false,
+        showDeleteDialog: Boolean = false,
+        isDeleting: Boolean = false
     ) {
         composeTestRule.setContent {
             ProfileContent(
@@ -59,6 +65,11 @@ class ProfileScreenTest {
                 showNotificationsOffDialog = showNotificationsOffDialog,
                 onDismissNotificationsOffDialog = { dialogDismissed = true },
                 onPolicyClick = { policyClicked = true },
+                showDeleteDialog = showDeleteDialog,
+                isDeleting = isDeleting,
+                onDeleteClick = { deleteClicked = true },
+                onDeleteConfirmed = { deleteConfirmed = true },
+                onDeleteDismissed = { deleteDismissed = true },
                 onBackClick = {}
             )
         }
@@ -156,6 +167,11 @@ class ProfileScreenTest {
                 showNotificationsOffDialog = showDialog,
                 onDismissNotificationsOffDialog = { showDialog = false },
                 onPolicyClick = {},
+                showDeleteDialog = false,
+                isDeleting = false,
+                onDeleteClick = {},
+                onDeleteConfirmed = {},
+                onDeleteDismissed = {},
                 onBackClick = {}
             )
         }
@@ -169,5 +185,84 @@ class ProfileScreenTest {
         showProfile()
         composeTestRule.onNodeWithText("App policy and guidelines").performScrollTo().performClick()
         assertTrue(policyClicked)
+    }
+
+    // the delete button is on the profile and asks to delete
+    @Test
+    fun deleteButtonIsDisplayedAndClickable() {
+        showProfile()
+        composeTestRule.onNodeWithText("Delete profile").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Delete profile").performClick()
+        assertTrue(deleteClicked)
+    }
+
+    // nothing is deleted until the user confirms
+    @Test
+    fun deleteDialogHiddenByDefault() {
+        showProfile()
+        composeTestRule.onNodeWithText("Delete profile?").assertDoesNotExist()
+        assertFalse(deleteConfirmed)
+    }
+
+    // the dialog explains that deleting can't be undone
+    @Test
+    fun deleteDialogShowsWarning() {
+        showProfile(showDeleteDialog = true)
+        composeTestRule.onNodeWithText("Delete profile?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("can't be undone", substring = true).assertIsDisplayed()
+    }
+
+    // confirming in the dialog deletes the profile
+    @Test
+    fun confirmingDeleteCallsOnDeleteConfirmed() {
+        showProfile(showDeleteDialog = true)
+        composeTestRule.onNodeWithText("Delete").performClick()
+        assertTrue(deleteConfirmed)
+        assertFalse(deleteDismissed)
+    }
+
+    // cancelling the dialog keeps the profile
+    @Test
+    fun cancellingDeleteCallsOnDeleteDismissed() {
+        showProfile(showDeleteDialog = true)
+        composeTestRule.onNodeWithText("Cancel").performClick()
+        assertTrue(deleteDismissed)
+        assertFalse(deleteConfirmed)
+    }
+
+    // while deleting, the buttons can't be pressed again
+    @Test
+    fun buttonsDisabledWhileDeleting() {
+        showProfile(showDeleteDialog = true, isDeleting = true)
+        composeTestRule.onNodeWithText("Deleting…").assertIsNotEnabled()
+        composeTestRule.onNodeWithText("Cancel").assertIsNotEnabled()
+    }
+
+    // the dialog closes after cancelling when the screen state updates
+    @Test
+    fun deleteDialogClosesAfterCancel() {
+        var showDialog by mutableStateOf(true)
+        composeTestRule.setContent {
+            ProfileContent(
+                name = "Test Entrant", onNameChange = {},
+                email = "", onEmailChange = {},
+                phone = "", onPhoneChange = {},
+                isSaving = false, message = null, errorMessage = null, onSaveClick = {},
+                notificationsEnabled = true,
+                notificationsToggleEnabled = true,
+                onNotificationsToggle = {},
+                showNotificationsOffDialog = false,
+                onDismissNotificationsOffDialog = {},
+                onPolicyClick = {},
+                showDeleteDialog = showDialog,
+                isDeleting = false,
+                onDeleteClick = { showDialog = true },
+                onDeleteConfirmed = {},
+                onDeleteDismissed = { showDialog = false },
+                onBackClick = {}
+            )
+        }
+        composeTestRule.onNodeWithText("Cancel").performClick()
+        composeTestRule.onNodeWithText("Delete profile?").assertDoesNotExist()
     }
 }
