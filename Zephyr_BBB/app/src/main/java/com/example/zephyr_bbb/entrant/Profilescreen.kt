@@ -1,5 +1,7 @@
 package com.example.zephyr_bbb.entrant
 
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -25,10 +28,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.zephyr_bbb.database.repository.ImageRepository
 import com.example.zephyr_bbb.database.repository.UserRepository
 
 /** Test tag for the push notifications switch row on the profile screen. */
@@ -36,19 +41,27 @@ internal const val NOTIFICATIONS_SWITCH_TAG = "notificationsSwitch"
 
 /**
  * Lets the entrant view and edit their profile (name, email, phone),
- * opt out of receiving notifications, and open the app policy and guidelines.
- * US 01.07.03, US 01.10.01, US 01.11.01.
+ * opt out of receiving notifications, open the app policy and guidelines,
+ * and delete their profile. US 01.07.03, US 01.08.01, US 01.10.01, US 01.11.01.
  *
  * This is the stateful wrapper: it loads the signed-in user, talks to
  * [UserRepository], and passes plain values down to [ProfileContent].
  *
  * @param onBackClick is invoked when the user clicks the back button
  * @param onPolicyClick is invoked when the user clicks App policy and guidelines
+ * @param onProfileDeleted is invoked after the profile has been deleted, so the
+ * caller can leave this screen and clear the back stack
  */
 @Composable
-fun ProfileScreen(onBackClick: () -> Unit, onPolicyClick: () -> Unit) {
+fun ProfileScreen(
+    onBackClick: () -> Unit,
+    onPolicyClick: () -> Unit,
+    onProfileDeleted: () -> Unit
+) {
     DeviceIdentityGate { user ->
         val userRepository = remember { UserRepository() }
+        val imageRepository = remember { ImageRepository() }
+        val context = LocalContext.current
 
         // Start the fields with what's already saved for this user
         var name by remember(user.id) { mutableStateOf(user.name) }
@@ -59,6 +72,8 @@ fun ProfileScreen(onBackClick: () -> Unit, onPolicyClick: () -> Unit) {
         var isSaving by remember { mutableStateOf(false) }
         var isSavingNotifications by remember { mutableStateOf(false) }
         var showNotificationsOffDialog by remember { mutableStateOf(false) }
+        var showDeleteDialog by remember { mutableStateOf(false) }
+        var isDeleting by remember { mutableStateOf(false) }
         var message by remember { mutableStateOf<String?>(null) }
         var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -118,14 +133,77 @@ fun ProfileScreen(onBackClick: () -> Unit, onPolicyClick: () -> Unit) {
             showNotificationsOffDialog = showNotificationsOffDialog,
             onDismissNotificationsOffDialog = { showNotificationsOffDialog = false },
             onPolicyClick = onPolicyClick,
+            showDeleteDialog = showDeleteDialog,
+            isDeleting = isDeleting,
+            onDeleteClick = {
+                message = null
+                errorMessage = null
+                showDeleteDialog = true
+            },
+            onDeleteConfirmed = {
+                isDeleting = true
+                deleteProfile(
+                    profileImageId = user.profileImageId,
+                    userRepository = userRepository,
+                    imageRepository = imageRepository,
+                    onSuccess = {
+                        Toast.makeText(context, "Your profile was deleted", Toast.LENGTH_SHORT).show()
+                        onProfileDeleted()
+                    },
+                    onFailure = {
+                        isDeleting = false
+                        showDeleteDialog = false
+                        errorMessage = it.message ?: "Could not delete your profile."
+                    }
+                )
+            },
+            onDeleteDismissed = { showDeleteDialog = false },
             onBackClick = onBackClick
         )
     }
 }
 
 /**
+ * Deletes the signed-in user's profile image (if they have one) and then their profile.
+ * The image goes first, while the user is still signed in and allowed to delete it.
+ * If only the image fails, the profile is still deleted so the user isn't stuck.
+ * US 01.08.01.
+ *
+ * @param profileImageId the user's profile image id, or null if they have none
+ * @param userRepository used to delete the profile and sign out
+ * @param imageRepository used to delete the profile image
+ * @param onSuccess is invoked once the profile is deleted
+ * @param onFailure is invoked if the profile could not be deleted
+ */
+private fun deleteProfile(
+    profileImageId: String?,
+    userRepository: UserRepository,
+    imageRepository: ImageRepository,
+    onSuccess: () -> Unit,
+    onFailure: (Exception) -> Unit
+) {
+    val deleteUser = {
+        userRepository.deleteCurrentProfile(onSuccess = onSuccess, onFailure = onFailure)
+    }
+
+    if (profileImageId.isNullOrBlank()) {
+        deleteUser()
+        return
+    }
+
+    imageRepository.deleteImage(
+        imageId = profileImageId,
+        onSuccess = { deleteUser() },
+        onFailure = { error ->
+            Log.w("ProfileScreen", "Could not delete profile image before deleting profile.", error)
+            deleteUser()
+        }
+    )
+}
+
+/**
  * The profile screen's UI with no Firebase access, so it can be tested on its own.
- * US 01.07.03, US 01.10.01, US 01.11.01.
+ * US 01.07.03, US 01.08.01, US 01.10.01, US 01.11.01.
  *
  * @param name the name currently in the name field
  * @param onNameChange is invoked when the user edits the name
@@ -143,6 +221,11 @@ fun ProfileScreen(onBackClick: () -> Unit, onPolicyClick: () -> Unit) {
  * @param showNotificationsOffDialog true to show the "notifications turned off" dialog
  * @param onDismissNotificationsOffDialog is invoked when the user closes that dialog
  * @param onPolicyClick is invoked when the user clicks App policy and guidelines
+ * @param showDeleteDialog true to show the "Delete profile?" confirmation dialog
+ * @param isDeleting true while the profile is being deleted
+ * @param onDeleteClick is invoked when the user clicks Delete profile
+ * @param onDeleteConfirmed is invoked when the user confirms the deletion in the dialog
+ * @param onDeleteDismissed is invoked when the user cancels or closes the dialog
  * @param onBackClick is invoked when the user clicks the back button
  */
 @Composable
@@ -163,6 +246,11 @@ internal fun ProfileContent(
     showNotificationsOffDialog: Boolean,
     onDismissNotificationsOffDialog: () -> Unit,
     onPolicyClick: () -> Unit,
+    showDeleteDialog: Boolean,
+    isDeleting: Boolean,
+    onDeleteClick: () -> Unit,
+    onDeleteConfirmed: () -> Unit,
+    onDeleteDismissed: () -> Unit,
     onBackClick: () -> Unit
 ) {
     val canSave = name.isNotBlank() && !isSaving
@@ -245,6 +333,45 @@ internal fun ProfileContent(
         // Policy link sits at the bottom, like the legal links in most apps' account screens
         HorizontalDivider()
         TextButton(onClick = onPolicyClick) { Text("App policy and guidelines") }
+
+        // Destructive action goes last, in the error colour, so it's hard to hit by accident
+        Button(
+            onClick = onDeleteClick,
+            enabled = !isDeleting,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Delete profile") }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            // Can't be dismissed by tapping outside while the delete is running
+            onDismissRequest = { if (!isDeleting) onDeleteDismissed() },
+            title = { Text("Delete profile?") },
+            text = {
+                Text(
+                    "This permanently deletes your name, contact details and profile " +
+                        "image. This can't be undone.\n\n" +
+                        "Upcoming reservations aren't cancelled automatically, so cancel " +
+                        "any you won't use before deleting your profile."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = onDeleteConfirmed,
+                    enabled = !isDeleting,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) { Text(if (isDeleting) "Deleting…" else "Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = onDeleteDismissed, enabled = !isDeleting) { Text("Cancel") }
+            }
+        )
     }
 
     if (showNotificationsOffDialog) {

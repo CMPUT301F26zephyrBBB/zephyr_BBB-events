@@ -198,6 +198,13 @@ fun CustomNavigationBar(
                     },
                     onPolicyClick = {
                         navController.navigate("app_policy")
+                    },
+                    onProfileDeleted = {
+                        // Go home and clear the back stack so Back can't reopen the deleted profile
+                        navController.navigate("home") {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                            launchSingleTop = true
+                        }
                     }
                 )
             }
