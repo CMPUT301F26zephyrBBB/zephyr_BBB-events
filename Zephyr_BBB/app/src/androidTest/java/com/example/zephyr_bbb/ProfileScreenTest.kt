@@ -9,11 +9,13 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.example.zephyr_bbb.entrant.EntrantUtils
 import com.example.zephyr_bbb.entrant.NOTIFICATIONS_SWITCH_TAG
 import com.example.zephyr_bbb.entrant.ProfileContent
 import org.junit.Assert.assertEquals
@@ -24,7 +26,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-// ui tests for the entrant profile screen (US 01.07.03, US 01.08.01, US 01.10.01, US 01.11.01)
+// ui tests for the entrant profile screen (US 01.07.03, US 01.08.01, US 01.08.02, US 01.10.01, US 01.11.01)
 @RunWith(AndroidJUnit4::class)
 class ProfileScreenTest {
 
@@ -38,6 +40,12 @@ class ProfileScreenTest {
     private var deleteClicked = false
     private var deleteConfirmed = false
     private var deleteDismissed = false
+    private var changePhotoClicked = false
+    private var removePhotoClicked = false
+    private var uploadConfirmed = false
+    private var uploadCancelled = false
+    private var removeConfirmed = false
+    private var removeCancelled = false
 
     // shows the profile content with fake data and records the callbacks
     private fun showProfile(
@@ -45,11 +53,29 @@ class ProfileScreenTest {
         notificationsToggleEnabled: Boolean = true,
         showNotificationsOffDialog: Boolean = false,
         showDeleteDialog: Boolean = false,
-        isDeleting: Boolean = false
+        isDeleting: Boolean = false,
+        photoUrl: String? = null,
+        name: String = "Test Entrant",
+        hasProfileImage: Boolean = false,
+        isPhotoBusy: Boolean = false,
+        showUploadPhotoDialog: Boolean = false,
+        showRemovePhotoDialog: Boolean = false
     ) {
         composeTestRule.setContent {
             ProfileContent(
-                name = "Test Entrant",
+                photoUrl = photoUrl,
+                initials = EntrantUtils.initials(name),
+                hasProfileImage = hasProfileImage,
+                isPhotoBusy = isPhotoBusy,
+                onChangePhotoClick = { changePhotoClicked = true },
+                onRemovePhotoClick = { removePhotoClicked = true },
+                showUploadPhotoDialog = showUploadPhotoDialog,
+                onConfirmUploadPhoto = { uploadConfirmed = true },
+                onCancelUploadPhoto = { uploadCancelled = true },
+                showRemovePhotoDialog = showRemovePhotoDialog,
+                onConfirmRemovePhoto = { removeConfirmed = true },
+                onCancelRemovePhoto = { removeCancelled = true },
+                name = name,
                 onNameChange = {},
                 email = "",
                 onEmailChange = {},
@@ -157,6 +183,10 @@ class ProfileScreenTest {
         var showDialog by mutableStateOf(true)
         composeTestRule.setContent {
             ProfileContent(
+                photoUrl = null, initials = "TE", hasProfileImage = false, isPhotoBusy = false,
+                onChangePhotoClick = {}, onRemovePhotoClick = {},
+                showUploadPhotoDialog = false, onConfirmUploadPhoto = {}, onCancelUploadPhoto = {},
+                showRemovePhotoDialog = false, onConfirmRemovePhoto = {}, onCancelRemovePhoto = {},
                 name = "Test Entrant", onNameChange = {},
                 email = "", onEmailChange = {},
                 phone = "", onPhoneChange = {},
@@ -244,6 +274,10 @@ class ProfileScreenTest {
         var showDialog by mutableStateOf(true)
         composeTestRule.setContent {
             ProfileContent(
+                photoUrl = null, initials = "TE", hasProfileImage = false, isPhotoBusy = false,
+                onChangePhotoClick = {}, onRemovePhotoClick = {},
+                showUploadPhotoDialog = false, onConfirmUploadPhoto = {}, onCancelUploadPhoto = {},
+                showRemovePhotoDialog = false, onConfirmRemovePhoto = {}, onCancelRemovePhoto = {},
                 name = "Test Entrant", onNameChange = {},
                 email = "", onEmailChange = {},
                 phone = "", onPhoneChange = {},
@@ -264,5 +298,108 @@ class ProfileScreenTest {
         }
         composeTestRule.onNodeWithText("Cancel").performClick()
         composeTestRule.onNodeWithText("Delete profile?").assertDoesNotExist()
+    }
+
+    // profile photo (US 01.08.02)
+
+    // with no photo, the placeholder shows initials and only Add photo is offered
+    @Test
+    fun noPhotoShowsPlaceholderAndAddButton() {
+        showProfile()
+        composeTestRule.onNodeWithContentDescription("No profile photo").assertIsDisplayed()
+        composeTestRule.onNodeWithText("TE").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Add photo").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Change photo").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Remove photo").assertDoesNotExist()
+    }
+
+    // with a blank name there are no initials to show
+    @Test
+    fun blankNameShowsNoInitials() {
+        showProfile(name = "")
+        composeTestRule.onNodeWithContentDescription("No profile photo").assertIsDisplayed()
+        composeTestRule.onNodeWithText("TE").assertDoesNotExist()
+    }
+
+    // with a photo, the photo is shown and it can be changed or removed
+    @Test
+    fun photoShowsChangeAndRemoveButtons() {
+        showProfile(photoUrl = "https://example.com/photo.jpg", hasProfileImage = true)
+        composeTestRule.onNodeWithContentDescription("Profile photo").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Change photo").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Remove photo").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Add photo").assertDoesNotExist()
+    }
+
+    @Test
+    fun addPhotoCallsOnChangePhotoClick() {
+        showProfile()
+        composeTestRule.onNodeWithText("Add photo").performClick()
+        assertTrue(changePhotoClicked)
+    }
+
+    @Test
+    fun removePhotoCallsOnRemovePhotoClick() {
+        showProfile(hasProfileImage = true)
+        composeTestRule.onNodeWithText("Remove photo").performClick()
+        assertTrue(removePhotoClicked)
+    }
+
+    // the photo buttons can't be pressed while a photo is uploading or being removed
+    @Test
+    fun photoButtonsDisabledWhileBusy() {
+        showProfile(hasProfileImage = true, isPhotoBusy = true)
+        composeTestRule.onNodeWithText("Change photo").assertIsNotEnabled()
+        composeTestRule.onNodeWithText("Remove photo").assertIsNotEnabled()
+    }
+
+    @Test
+    fun photoButtonsEnabledWhenNotBusy() {
+        showProfile(hasProfileImage = true)
+        composeTestRule.onNodeWithText("Change photo").assertIsEnabled()
+        composeTestRule.onNodeWithText("Remove photo").assertIsEnabled()
+    }
+
+    // after picking a photo, the user confirms before it's uploaded
+    @Test
+    fun uploadDialogConfirmCallsOnConfirmUpload() {
+        showProfile(showUploadPhotoDialog = true)
+        composeTestRule.onNodeWithText("Upload profile image?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Upload").performClick()
+        assertTrue(uploadConfirmed)
+        assertFalse(uploadCancelled)
+    }
+
+    @Test
+    fun uploadDialogCancelCallsOnCancelUpload() {
+        showProfile(showUploadPhotoDialog = true)
+        composeTestRule.onNodeWithText("Cancel").performClick()
+        assertTrue(uploadCancelled)
+        assertFalse(uploadConfirmed)
+    }
+
+    @Test
+    fun photoDialogsHiddenByDefault() {
+        showProfile(hasProfileImage = true)
+        composeTestRule.onNodeWithText("Upload profile image?").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Remove profile photo?").assertDoesNotExist()
+    }
+
+    // removing the photo asks first
+    @Test
+    fun removeDialogConfirmCallsOnConfirmRemove() {
+        showProfile(hasProfileImage = true, showRemovePhotoDialog = true)
+        composeTestRule.onNodeWithText("Remove profile photo?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Remove").performClick()
+        assertTrue(removeConfirmed)
+        assertFalse(removeCancelled)
+    }
+
+    @Test
+    fun removeDialogCancelCallsOnCancelRemove() {
+        showProfile(hasProfileImage = true, showRemovePhotoDialog = true)
+        composeTestRule.onNodeWithText("Cancel").performClick()
+        assertTrue(removeCancelled)
+        assertFalse(removeConfirmed)
     }
 }

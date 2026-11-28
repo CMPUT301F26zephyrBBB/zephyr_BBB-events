@@ -39,5 +39,17 @@ object EntrantUtils {
     /** 12345 cents in CAD -> "$123.45 CAD". */
     fun formatPrice(cents: Long, currency: String): String =
         String.format(Locale.ROOT, "$%.2f %s", cents / 100.0, currency)
+
+    /**
+     * Up to two initials for a profile photo placeholder, from the first and last words
+     * of [name]. "Aidan Lynch" -> "AL", "aidan" -> "A", and a blank name -> "".
+     */
+    fun initials(name: String): String {
+        val words = name.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (words.isEmpty()) return ""
+        val first = words.first().first()
+        val last = if (words.size > 1) words.last().first().toString() else ""
+        return (first + last).uppercase(Locale.getDefault())
+    }
 }
 

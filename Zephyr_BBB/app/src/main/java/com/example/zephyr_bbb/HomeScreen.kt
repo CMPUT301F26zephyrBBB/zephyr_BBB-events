@@ -1,6 +1,7 @@
 package com.example.zephyr_bbb
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -21,8 +23,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.example.zephyr_bbb.database.repository.ImageRepository
 import com.example.zephyr_bbb.database.repository.UserRepository
 
 /**
@@ -31,7 +39,8 @@ import com.example.zephyr_bbb.database.repository.UserRepository
  * things depending on what there permissions are.
  * If the user is an admin it shows a button that leads to an admin dashboard
  * If the user is a campsite owner it shows a button that leads to an owner dashboard
- * Every user gets a profile button in the top right corner that opens their profile
+ * Every user gets a profile button in the top right corner that opens their profile.
+ * It shows their profile photo if they have one (US 01.08.02)
  *
  * @param onAdminClick is invoked when the user clicks the admin dashboard button
  * @param onOwnerClick is invoked when the user clicks the owner dashboard button
@@ -54,12 +63,29 @@ fun HomeScreen(
         mutableStateOf(false)
     }
 
+    // download URL of the user's profile photo, null if they don't have one
+    var profilePhotoUrl by remember {
+        mutableStateOf<String?>(null)
+    }
+
     // check the signed-in user's roles
     LaunchedEffect(Unit) {
         UserRepository().getOrCreateCurrentUser(
             onSuccess = { user ->
                 isAdmin = "admin" in user.roles
                 isOwner = "owner" in user.roles
+                // Home is loaded again each time it's opened, so a photo changed
+                // on the profile screen shows up here when the user comes back
+                val imageId = user.profileImageId
+                if (!imageId.isNullOrBlank()) {
+                    ImageRepository().getImageUrl(
+                        imageId = imageId,
+                        onSuccess = { url -> profilePhotoUrl = url },
+                        onFailure = { profilePhotoUrl = null }
+                    )
+                } else {
+                    profilePhotoUrl = null
+                }
             },
             onFailure = {
                 isAdmin = false
@@ -86,15 +112,7 @@ fun HomeScreen(
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.weight(1f)
             )
-            // IconButton keeps the touch target at least 48dp
-            IconButton(onClick = onProfileClick) {
-                Icon(
-                    painter = painterResource(R.drawable.person),
-                    contentDescription = "My profile",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
+            ProfileIconButton(photoUrl = profilePhotoUrl, onClick = onProfileClick)
         }
 
         Text("Welcome to Zephyr")
@@ -127,5 +145,45 @@ fun HomeScreen(
             }
         }
 
+    }
+}
+
+/**
+ * The profile button in the top right of the home screen. Shows the user's
+ * profile photo in a small circle, or the person icon if they don't have one
+ * (or while the photo is still loading). US 01.08.02.
+ *
+ * @param photoUrl download URL of the user's profile photo, or null for the person icon
+ * @param onClick is invoked when the user clicks the button
+ */
+@Composable
+internal fun ProfileIconButton(
+    photoUrl: String?,
+    onClick: () -> Unit
+) {
+    // IconButton keeps the touch target at least 48dp
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.semantics { contentDescription = "My profile" }
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                painter = painterResource(R.drawable.person),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(28.dp)
+            )
+            // Drawn over the icon, which shows through until the photo has loaded
+            if (photoUrl != null) {
+                AsyncImage(
+                    model = photoUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                )
+            }
+        }
     }
 }
