@@ -61,4 +61,29 @@ class HomeScreenTest {
         composeTestRule.onNodeWithContentDescription("My profile").performClick()
         assertTrue(profileClicked)
     }
+
+    // with no profile photo, the icon button still works (US 01.08.02)
+    @Test
+    fun profileIconButtonWithoutPhoto() {
+        var clicked = false
+        composeTestRule.setContent {
+            ProfileIconButton(photoUrl = null, onClick = { clicked = true })
+        }
+        composeTestRule.onNodeWithContentDescription("My profile").assertIsDisplayed().performClick()
+        assertTrue(clicked)
+    }
+
+    // with a profile photo, the button keeps its label and still opens the profile
+    @Test
+    fun profileIconButtonWithPhoto() {
+        var clicked = false
+        composeTestRule.setContent {
+            ProfileIconButton(photoUrl = "https://example.com/photo.jpg", onClick = { clicked = true })
+        }
+        composeTestRule.onNodeWithContentDescription("My profile")
+            .assertIsDisplayed()
+            .assertHasClickAction()
+            .performClick()
+        assertTrue(clicked)
+    }
 }
