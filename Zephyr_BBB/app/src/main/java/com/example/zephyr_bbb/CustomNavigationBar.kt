@@ -8,6 +8,7 @@ package com.example.zephyr_bbb
 // GitHub URL: https://github.com/android/snippets/blob/main/compose/snippets/src/main/java/com/example/compose/snippets/components/Navigation.kt
 
 
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -37,6 +38,7 @@ import com.example.zephyr_bbb.entrant.CampsiteFilterScreen
 import com.example.zephyr_bbb.entrant.CampsiteSearchViewModel
 import com.example.zephyr_bbb.entrant.AppPolicyScreen
 import com.example.zephyr_bbb.entrant.QrScanScreen
+import com.example.zephyr_bbb.entrant.EntrantMessagingScreen
 import com.example.zephyr_bbb.entrant.EntrantReservationsScreen
 import com.example.zephyr_bbb.entrant.NotificationsScreen
 import com.example.zephyr_bbb.entrant.ProfileScreen
@@ -266,7 +268,24 @@ fun CustomNavigationBar(
                     reservationId = reservationId,
                     onDoneClick = {
                         navController.popBackStack()
+                    },
+                    onMessageOwnerClick = {
+                        navController.navigate("entrant_messaging/$it")
                     }
+                )
+            }
+
+            // Entrant's chat with the campsite owner about a reservation (US 01.14.01)
+            composable("entrant_messaging/{reservationId}") { backStackEntry ->
+                val reservationId = backStackEntry.arguments?.getString("reservationId") ?: ""
+                EntrantMessagingScreen(
+                    reservationId = reservationId,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    // The Scaffold's padding is already applied, so the keyboard
+                    // padding inside the screen shouldn't add it again
+                    modifier = Modifier.consumeWindowInsets(contentPadding)
                 )
             }
 

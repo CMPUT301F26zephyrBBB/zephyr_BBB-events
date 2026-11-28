@@ -91,6 +91,7 @@ Replacing an existing image automatically attempts to delete the previous Storag
 | getMyMessages                 | None                                | Get messages received by the current entrant.                               |
 | getMessagesForReservation     | reservationId: String               | Get messages about a reservation.                                           |
 | observeMessagesForReservation | reservationId: String               | Listen for reservation messages in real time; returns ListenerRegistration. |
+| observeMyMessagesForReservation | reservationId: String             | Listen in real time for the messages the current user sent or received about a reservation, merged oldest first; returns ListenerRegistration. |
 
 ## RatingRepository
 
